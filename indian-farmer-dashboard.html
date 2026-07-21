@@ -1,0 +1,317 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Indian Farmer — 90-Day Channel Performance</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+  :root{
+    --soil:#233B24;
+    --leaf:#3E6B3A;
+    --leaf-light:#6E9B5E;
+    --wheat:#D9A441;
+    --wheat-light:#F0D8A0;
+    --cream:#F7F4EC;
+    --ink:#1D241B;
+    --muted:#5B6B57;
+    --card:#FFFFFF;
+    --line:#E4DFD0;
+    --danger:#B3543C;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    font-family:"Segoe UI", Helvetica, Arial, sans-serif;
+    background:var(--cream);
+    color:var(--ink);
+  }
+  header{
+    background:linear-gradient(135deg, var(--soil), var(--leaf) 130%);
+    color:#fff;
+    padding:36px 40px 28px;
+    position:relative;
+    overflow:hidden;
+  }
+  header .rows{
+    position:absolute; inset:0; opacity:.10;
+    background-image: repeating-linear-gradient(180deg, transparent 0 22px, #fff 22px 24px);
+  }
+  header h1{
+    margin:0 0 6px; font-size:26px; letter-spacing:.2px; position:relative;
+  }
+  header p{
+    margin:0; color:var(--wheat-light); font-size:14px; position:relative;
+  }
+  .eyebrow{
+    text-transform:uppercase; letter-spacing:1.5px; font-size:11px; color:var(--wheat);
+    font-weight:700; margin-bottom:8px; position:relative;
+  }
+  main{ max-width:1180px; margin:0 auto; padding:28px 32px 60px; }
+  .kpis{ display:grid; grid-template-columns:repeat(4,1fr); gap:16px; margin-bottom:30px; }
+  .kpi{
+    background:var(--card); border:1px solid var(--line); border-left:4px solid var(--leaf);
+    border-radius:6px; padding:16px 18px;
+  }
+  .kpi .label{ font-size:11.5px; text-transform:uppercase; letter-spacing:.8px; color:var(--muted); font-weight:600;}
+  .kpi .value{ font-size:26px; font-weight:700; color:var(--soil); margin-top:6px;}
+  .kpi .sub{ font-size:12px; color:var(--muted); margin-top:4px;}
+  section{ margin-bottom:34px; }
+  .section-title{
+    font-size:16px; font-weight:700; color:var(--soil); margin:0 0 4px;
+    display:flex; align-items:center; gap:8px;
+  }
+  .section-title:before{ content:""; width:8px; height:8px; background:var(--wheat); display:inline-block; }
+  .section-sub{ font-size:12.5px; color:var(--muted); margin:0 0 14px; }
+  .grid-2{ display:grid; grid-template-columns:1.15fr .85fr; gap:18px; }
+  .card{ background:var(--card); border:1px solid var(--line); border-radius:6px; padding:18px 20px; }
+  .callout{
+    background:#FBF3E1; border:1px solid var(--wheat-light); border-left:4px solid var(--wheat);
+    border-radius:6px; padding:16px 20px; font-size:13.5px; line-height:1.55; color:var(--ink);
+  }
+  .callout b{color:var(--soil);}
+  table{ width:100%; border-collapse:collapse; font-size:13px; }
+  th{ text-align:left; padding:8px 10px; font-size:11px; text-transform:uppercase; letter-spacing:.5px;
+      color:var(--muted); border-bottom:2px solid var(--line); }
+  td{ padding:9px 10px; border-bottom:1px solid var(--line); vertical-align:top; }
+  tr:last-child td{ border-bottom:none; }
+  .rank{ color:var(--muted); font-variant-numeric:tabular-nums; width:24px; }
+  .pill{
+    display:inline-block; padding:2px 8px; border-radius:20px; font-size:11px; font-weight:600;
+  }
+  .pill.good{ background:#E7F0E1; color:var(--leaf); }
+  .pill.warn{ background:#FBE9E4; color:var(--danger); }
+  .two-col{ display:grid; grid-template-columns:1fr 1fr; gap:18px; }
+  .legend-row{ display:flex; justify-content:space-between; font-size:12.5px; padding:6px 0; border-bottom:1px dashed var(--line); }
+  .legend-row:last-child{ border-bottom:none; }
+  footer{
+    max-width:1180px; margin:0 auto; padding:0 32px 50px; font-size:12px; color:var(--muted); line-height:1.6;
+  }
+  footer h3{ font-size:12.5px; color:var(--soil); margin-bottom:8px; }
+  canvas{ max-width:100%; }
+  @media (max-width:900px){
+    .kpis{grid-template-columns:repeat(2,1fr);}
+    .grid-2, .two-col{grid-template-columns:1fr;}
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="rows"></div>
+  <div class="eyebrow">Indian Farmer &middot; YouTube + Course Promotion</div>
+  <h1>90-Day Channel Performance Dashboard</h1>
+  <p>Jan 19 – Apr 18, 2026 &nbsp;|&nbsp; Content and traffic data from YouTube Studio export</p>
+</header>
+
+<main>
+
+  <section class="kpis" id="kpis"></section>
+
+  <section>
+    <h2 class="section-title">Shorts vs. Long-form: reach vs. subscriber payoff</h2>
+    <p class="section-sub">Shorts dominate views, but long-form content converts viewers into subscribers far more efficiently.</p>
+    <div class="grid-2">
+      <div class="card"><canvas id="mixChart" height="220"></canvas></div>
+      <div class="card">
+        <div class="legend-row"><span>Videos published</span><b><span id="m_v_short"></span> Shorts &nbsp;/&nbsp; <span id="m_v_long"></span> Long-form</b></div>
+        <div class="legend-row"><span>Share of views</span><b><span id="m_views_short"></span>% / <span id="m_views_long"></span>%</b></div>
+        <div class="legend-row"><span>Share of watch-hours</span><b><span id="m_wh_short"></span>% / <span id="m_wh_long"></span>%</b></div>
+        <div class="legend-row"><span>Avg. impressions CTR</span><b><span id="m_ctr_short"></span>% / <span id="m_ctr_long"></span>%</b></div>
+        <div class="legend-row"><span>Subscribers gained per 1,000 views</span><b><span id="m_sub_short"></span> / <span id="m_sub_long"></span></b></div>
+        <div class="callout" style="margin-top:14px;">
+          <b>Read:</b> Shorts bring the reach (92% of views) but long-form drives real audience depth — more total watch-hours from a fraction of the views, and roughly <b>5x</b> better subscriber conversion per view.
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2 class="section-title">Where the views come from</h2>
+    <p class="section-sub">Traffic source mix and click-through rate, where YouTube reports it.</p>
+    <div class="card"><canvas id="trafficChart" height="140"></canvas></div>
+  </section>
+
+  <section>
+    <h2 class="section-title">Top 10 videos by views</h2>
+    <div class="card" style="padding:6px 20px;">
+      <table id="topTable">
+        <thead><tr><th>#</th><th>Video</th><th>Views</th><th>Subs gained</th><th>CTR</th></tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </section>
+
+  <div class="two-col">
+    <section>
+      <h2 class="section-title">Audience geography</h2>
+      <p class="section-sub">Top countries by views (India excluded from chart scale for readability — see note).</p>
+      <div class="card"><canvas id="geoChart" height="220"></canvas></div>
+    </section>
+    <section>
+      <h2 class="section-title">Course promotion: what the data shows</h2>
+      <p class="section-sub">Only 4 videos promoted the Shimla Mirch (capsicum) course in this window.</p>
+      <div class="card">
+        <table>
+          <thead><tr><th>Video</th><th>Views</th><th>CTR</th></tr></thead>
+          <tbody>
+            <tr><td>"Shimla Mirch...PROFIT" promo</td><td>411,670</td><td><span class="pill good">8.19%</span></td></tr>
+            <tr><td>"Course...PROFIT ki chaabi"</td><td>56,895</td><td><span class="pill good">7.05%</span></td></tr>
+            <tr><td>Launch livestream clip</td><td>4,103</td><td><span class="pill warn">3.33%</span></td></tr>
+            <tr><td>"Course link pin comment"</td><td>14,521</td><td><span class="pill warn">0.94%</span></td></tr>
+          </tbody>
+        </table>
+        <div class="callout" style="margin-top:14px;">
+          <b>Gap found:</b> the source file has no enrollment, revenue, or Courses-platform data at all — only these 4 YouTube videos reference the course. CTR performance is inconsistent (0.9%–8.2%) and there's no way to see whether views actually converted to sign-ups.
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <section>
+    <h2 class="section-title">Daily average view duration — full channel</h2>
+    <p class="section-sub">90-day trend, all content combined.</p>
+    <div class="card"><canvas id="trendChart" height="90"></canvas></div>
+  </section>
+
+</main>
+
+<footer>
+  <h3>Data cleaning notes</h3>
+  <p>
+  • A summary <b>"Total" row</b> was mixed into the per-video table — excluded from all video-level breakdowns and used only for channel-wide KPIs.<br>
+  • The per-video list (498 rows) sums to ~43.6M views, about 2.8% below the reported channel total of 44.88M — this export appears to exclude a long tail of very-low-view videos, so video-level splits (Shorts vs. long-form, top lists) reflect ~97% of total views, not 100%.<br>
+  • <b>2 videos</b> show a negative net subscriber count (more unsubscribes than subscribes while watching) — kept as-is, this is a valid YouTube metric, not an error.<br>
+  • <b>1 video</b> has 0 recorded impressions, making its click-through rate mathematically undefined (blank) rather than 0% — left blank rather than defaulted to zero.<br>
+  • Impressions/CTR are only reported by YouTube for 5 of 19 traffic sources — the rest are structurally blank, not missing data.<br>
+  • The "Chart data" tab tracks daily trends for only 5 individual videos (not all 498); the "Totals" tab has only a daily average-view-duration series, with no daily Views/Watch-time breakdown — so day-by-day trending below the whole-channel level is limited by the source export, not a cleaning choice.<br>
+  • The brief mentions a "Courses platform" — no such data exists in this file; course activity was inferred from the 4 videos whose titles reference the course.
+  </p>
+</footer>
+
+<script>
+const D = {"top10_views": [["5 Star Resort Jaisa Poultry Farm 😍🐔 #indianfarmer #shorts", 3583454, 3972, 6.38], ["झटपट बनेगा चारा..फटाफट होगा काम 🚜✅ #indianfarmer #shorts", 3460891, 3047, 6.38], ["ऐसा फार्म हो तो PROFIT भाग के आएगा💰🤩 #indianfarmer #shorts", 2252148, 1796, 6.34], ["Waste नहीं, खेत का कचरा भी Business है! 🌾📈💰 #indianfarmer #s", 1679603, 884, 4.93], ["Sahi Timing pe Sahi Kaam karna Zaruri hai ✅⚠️ #indianfarmer ", 1636780, 2034, 7.53], ["Pipeline और Road दोनों सही सलामत ✅🚜 #indianfarmer #shorts", 1179799, 385, 6.34], ["असली Beetal का देसी फार्म 😎🐐पूरा Video देखने के लिए ऊपर Clic", 891072, 1399, 8.03], ["6 हज़ार में खरीदा कचरा ?😳💸  #indianfarmer #shorts", 841912, 309, 8.41], ["अजीबोगरीब केकड़ा ट्रैक्टर😱🤯Swaraj Code Tractor #indianfarmer", 733105, 1372, 6.17], ["एक जुगाड़ बचाएगा आपके ₹30 लाख 🤯💯 #indianfarmer #shorts", 717513, 998, 7.78]], "traffic": [["Shorts feed", 27694548, NaN], ["YouTube search", 9635807, 5.87], ["Browse features", 4542711, 8.42], ["Channel pages", 1225409, 1.7], ["Suggested videos", 1104998, 5.32], ["External", 218382, NaN], ["Other YouTube features", 209844, NaN], ["Notifications", 122824, NaN], ["Direct or unknown", 41254, NaN], ["Related Shorts", 28004, NaN], ["Playlists", 22628, 2.04], ["Hashtag pages", 10379, NaN], ["Sound pages", 5330, NaN], ["End screens", 3198, NaN], ["Remixed video", 1881, NaN], ["Vertical live feed", 1422, NaN], ["Video cards and annotations", 501, NaN], ["Live Redirect", 1, NaN]], "geo": [["IN", 41468057], ["PK", 613302], ["NP", 482578], ["BD", 341732], ["SA", 309015], ["AE", 290834], ["US", 160261], ["GB", 83659]], "trend_dates": ["Jan 19", "Jan 20", "Jan 21", "Jan 22", "Jan 23", "Jan 24", "Jan 25", "Jan 26", "Jan 27", "Jan 28", "Jan 29", "Jan 30", "Jan 31", "Feb 01", "Feb 02", "Feb 03", "Feb 04", "Feb 05", "Feb 06", "Feb 07", "Feb 08", "Feb 09", "Feb 10", "Feb 11", "Feb 12", "Feb 13", "Feb 14", "Feb 15", "Feb 16", "Feb 17", "Feb 18", "Feb 19", "Feb 20", "Feb 21", "Feb 22", "Feb 23", "Feb 24", "Feb 25", "Feb 26", "Feb 27", "Feb 28", "Mar 01", "Mar 02", "Mar 03", "Mar 04", "Mar 05", "Mar 06", "Mar 07", "Mar 08", "Mar 09", "Mar 10", "Mar 11", "Mar 12", "Mar 13", "Mar 14", "Mar 15", "Mar 16", "Mar 17", "Mar 18", "Mar 19", "Mar 20", "Mar 21", "Mar 22", "Mar 23", "Mar 24", "Mar 25", "Mar 26", "Mar 27", "Mar 28", "Mar 29", "Mar 30", "Mar 31", "Apr 01", "Apr 02", "Apr 03", "Apr 04", "Apr 05", "Apr 06", "Apr 07", "Apr 08", "Apr 09", "Apr 10", "Apr 11", "Apr 12", "Apr 13", "Apr 14", "Apr 15", "Apr 16", "Apr 17", "Apr 18"], "trend_avd": [86, 60, 68, 69, 81, 83, 64, 63, 73, 75, 69, 66, 66, 73, 81, 83, 76, 74, 74, 73, 80, 78, 75, 52, 62, 78, 63, 58, 65, 66, 67, 69, 71, 71, 72, 73, 79, 75, 81, 104, 72, 63, 79, 74, 77, 77, 78, 79, 76, 84, 81, 82, 76, 71, 60, 64, 66, 58, 58, 62, 68, 75, 75, 75, 77, 81, 81, 74, 72, 66, 68, 70, 68, 70, 79, 73, 74, 72, 65, 55, 65, 79, 81, 78, 74, 73, 74, 70, 65, 70]}
+;
+
+Chart.defaults.font.family = "Segoe UI, Helvetica, Arial, sans-serif";
+Chart.defaults.color = "#5B6B57";
+const soil="#233B24", leaf="#3E6B3A", leafLight="#6E9B5E", wheat="#D9A441", wheatLight="#F0D8A0", danger="#B3543C";
+
+// KPIs
+const kpis = [
+  {label:"Total Views (90 days)", value:"44.88M", sub:"vs. 113.4M impressions"},
+  {label:"Watch Time", value:"566,976 hrs", sub:"≈ 23,624 days of viewing"},
+  {label:"Subscribers Gained", value:"38,268", sub:"net, across all content"},
+  {label:"Overall Impressions CTR", value:"6.37%", sub:"thumbnail + title pull-through"},
+];
+document.getElementById('kpis').innerHTML = kpis.map(k=>`
+  <div class="kpi"><div class="label">${k.label}</div><div class="value">${k.value}</div><div class="sub">${k.sub}</div></div>
+`).join('');
+
+// Mix numbers (computed server-side, hardcoded from analysis)
+const mix = {
+  v_short:264, v_long:234,
+  views_short:91.6, views_long:8.4,
+  wh_short:45.4, wh_long:54.6,
+  ctr_short:6.42, ctr_long:6.62,
+  sub_short:0.89, sub_long:4.79
+};
+document.getElementById('m_v_short').textContent = mix.v_short;
+document.getElementById('m_v_long').textContent = mix.v_long;
+document.getElementById('m_views_short').textContent = mix.views_short;
+document.getElementById('m_views_long').textContent = mix.views_long;
+document.getElementById('m_wh_short').textContent = mix.wh_short;
+document.getElementById('m_wh_long').textContent = mix.wh_long;
+document.getElementById('m_ctr_short').textContent = mix.ctr_short;
+document.getElementById('m_ctr_long').textContent = mix.ctr_long;
+document.getElementById('m_sub_short').textContent = mix.sub_short;
+document.getElementById('m_sub_long').textContent = mix.sub_long;
+
+new Chart(document.getElementById('mixChart'), {
+  type:'bar',
+  data:{
+    labels:['Share of views','Share of watch-hours','Subs / 1,000 views (scaled x10)'],
+    datasets:[
+      {label:'Shorts', backgroundColor:wheat, data:[mix.views_short, mix.wh_short, mix.sub_short*10]},
+      {label:'Long-form', backgroundColor:leaf, data:[mix.views_long, mix.wh_long, mix.sub_long*10]},
+    ]
+  },
+  options:{
+    plugins:{legend:{position:'top', align:'end'}},
+    scales:{y:{beginAtZero:true, grid:{color:'#E4DFD0'}}, x:{grid:{display:false}}}
+  }
+});
+
+// Traffic source chart
+const traffic = D.traffic.slice(0,8);
+new Chart(document.getElementById('trafficChart'), {
+  type:'bar',
+  data:{
+    labels: traffic.map(r=>r[0]),
+    datasets:[
+      {label:'Views', backgroundColor: leaf, data: traffic.map(r=>r[1]), yAxisID:'y'},
+    ]
+  },
+  options:{
+    plugins:{legend:{display:false},
+      tooltip:{callbacks:{afterLabel:(ctx)=>{
+        const ctr = traffic[ctx.dataIndex][2];
+        return ctr ? `CTR: ${ctr}%` : 'CTR: not tracked for this source';
+      }}}
+    },
+    scales:{ y:{beginAtZero:true, grid:{color:'#E4DFD0'}}, x:{grid:{display:false}} }
+  }
+});
+
+// Top table
+const tbody = document.querySelector('#topTable tbody');
+D.top10_views.forEach((r,i)=>{
+  const [title, views, subs, ctr] = r;
+  tbody.innerHTML += `<tr>
+    <td class="rank">${i+1}</td>
+    <td>${title}</td>
+    <td>${views.toLocaleString()}</td>
+    <td>${subs.toLocaleString()}</td>
+    <td>${ctr}%</td>
+  </tr>`;
+});
+
+// Geography (exclude India for scale, note separately)
+const geo = D.geo.filter(g=>g[0] !== 'IN').slice(0,8);
+new Chart(document.getElementById('geoChart'), {
+  type:'bar',
+  data:{
+    labels: geo.map(g=>g[0]),
+    datasets:[{label:'Views', backgroundColor: wheat, data: geo.map(g=>g[1])}]
+  },
+  options:{
+    indexAxis:'y',
+    plugins:{legend:{display:false},
+      title:{display:true, text:'India = 92.4% of all views (off-scale, shown in KPI/notes)', font:{size:11, weight:'normal'}, color:'#5B6B57'}
+    },
+    scales:{ x:{beginAtZero:true, grid:{color:'#E4DFD0'}}, y:{grid:{display:false}} }
+  }
+});
+
+// Trend
+new Chart(document.getElementById('trendChart'), {
+  type:'line',
+  data:{
+    labels: D.trend_dates,
+    datasets:[{
+      label:'Avg. view duration (sec)',
+      data: D.trend_avd,
+      borderColor: soil, backgroundColor:'rgba(62,107,58,0.12)',
+      fill:true, tension:0.25, pointRadius:0, borderWidth:2
+    }]
+  },
+  options:{
+    plugins:{legend:{display:false}},
+    scales:{
+      y:{beginAtZero:true, grid:{color:'#E4DFD0'}, title:{display:true,text:'seconds'}},
+      x:{grid:{display:false}, ticks:{maxTicksLimit:12}}
+    }
+  }
+});
+</script>
+</body>
+</html>

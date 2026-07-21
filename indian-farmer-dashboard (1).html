@@ -1,0 +1,728 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Indian Farmer — 90-Day Channel Performance</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+  :root{
+    --soil:#233B24;
+    --leaf:#3E6B3A;
+    --leaf-light:#6E9B5E;
+    --wheat:#D9A441;
+    --wheat-light:#F0D8A0;
+    --cream:#F7F4EC;
+    --ink:#1D241B;
+    --muted:#5B6B57;
+    --card:#FFFFFF;
+    --line:#E4DFD0;
+    --danger:#B3543C;
+    --danger-light:#F6E1DA;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    font-family:"Segoe UI", Helvetica, Arial, sans-serif;
+    background:var(--cream);
+    color:var(--ink);
+  }
+  header{
+    background:linear-gradient(135deg, var(--soil), var(--leaf) 130%);
+    color:#fff;
+    padding:36px 40px 28px;
+    position:relative;
+    overflow:hidden;
+  }
+  header .rows{
+    position:absolute; inset:0; opacity:.10;
+    background-image: repeating-linear-gradient(180deg, transparent 0 22px, #fff 22px 24px);
+  }
+  header h1{ margin:0 0 6px; font-size:26px; letter-spacing:.2px; position:relative; }
+  header p{ margin:0; color:var(--wheat-light); font-size:14px; position:relative; }
+  .eyebrow{
+    text-transform:uppercase; letter-spacing:1.5px; font-size:11px; color:var(--wheat);
+    font-weight:700; margin-bottom:8px; position:relative;
+  }
+  main{ max-width:1220px; margin:0 auto; padding:20px 32px 60px; }
+
+  /* sticky filter bar */
+  .filterbar{
+    position:sticky; top:0; z-index:20; background:var(--cream);
+    padding:14px 0 12px; margin-bottom:8px; border-bottom:1px solid var(--line);
+    display:flex; align-items:center; gap:14px; flex-wrap:wrap;
+  }
+  .segmented{ display:inline-flex; background:#fff; border:1px solid var(--line); border-radius:8px; padding:3px; }
+  .segmented button{
+    border:none; background:transparent; padding:7px 16px; font-size:13px; font-weight:600;
+    color:var(--muted); border-radius:6px; cursor:pointer; transition:.15s;
+  }
+  .segmented button.active{ background:var(--soil); color:#fff; }
+  .segmented button:hover:not(.active){ background:var(--line); }
+  .filterbar .hint{ font-size:12px; color:var(--muted); }
+  .filterbar .count{ font-size:12px; color:var(--muted); margin-left:auto; }
+
+  .kpis{ display:grid; grid-template-columns:repeat(4,1fr); gap:16px; margin:18px 0 30px; }
+  .kpi{
+    background:var(--card); border:1px solid var(--line); border-left:4px solid var(--leaf);
+    border-radius:6px; padding:16px 18px; transition:.2s;
+  }
+  .kpi .label{ font-size:11.5px; text-transform:uppercase; letter-spacing:.8px; color:var(--muted); font-weight:600;}
+  .kpi .value{ font-size:26px; font-weight:700; color:var(--soil); margin-top:6px;}
+  .kpi .sub{ font-size:12px; color:var(--muted); margin-top:4px;}
+
+  section{ margin-bottom:36px; }
+  .section-title{ font-size:16px; font-weight:700; color:var(--soil); margin:0 0 4px; display:flex; align-items:center; gap:8px; }
+  .section-title:before{ content:""; width:8px; height:8px; background:var(--wheat); display:inline-block; }
+  .section-sub{ font-size:12.5px; color:var(--muted); margin:0 0 14px; }
+  .grid-2{ display:grid; grid-template-columns:1.15fr .85fr; gap:18px; }
+  .card{ background:var(--card); border:1px solid var(--line); border-radius:6px; padding:18px 20px; }
+  .callout{
+    background:#FBF3E1; border:1px solid var(--wheat-light); border-left:4px solid var(--wheat);
+    border-radius:6px; padding:16px 20px; font-size:13.5px; line-height:1.55; color:var(--ink);
+  }
+  .callout.alt{ background:#EFF4EB; border-color:var(--leaf-light); border-left-color:var(--leaf); }
+  .callout b{color:var(--soil);}
+  table{ width:100%; border-collapse:collapse; font-size:13px; }
+  th{ text-align:left; padding:8px 10px; font-size:11px; text-transform:uppercase; letter-spacing:.5px;
+      color:var(--muted); border-bottom:2px solid var(--line); cursor:pointer; user-select:none; white-space:nowrap; }
+  th:hover{ color:var(--soil); }
+  th .arrow{ font-size:9px; opacity:.5; margin-left:3px; }
+  td{ padding:9px 10px; border-bottom:1px solid var(--line); vertical-align:top; }
+  tr:last-child td{ border-bottom:none; }
+  .rank{ color:var(--muted); font-variant-numeric:tabular-nums; width:24px; }
+  .pill{ display:inline-block; padding:2px 8px; border-radius:20px; font-size:11px; font-weight:600; }
+  .pill.good{ background:#E7F0E1; color:var(--leaf); }
+  .pill.warn{ background:var(--danger-light); color:var(--danger); }
+  .tag{ display:inline-block; font-size:10.5px; padding:1px 7px; border-radius:4px; font-weight:600; }
+  .tag.short{ background:var(--wheat-light); color:#8A5F14; }
+  .tag.long{ background:#E7F0E1; color:var(--leaf); }
+  .two-col{ display:grid; grid-template-columns:1fr 1fr; gap:18px; }
+  .legend-row{ display:flex; justify-content:space-between; font-size:12.5px; padding:6px 0; border-bottom:1px dashed var(--line); }
+  .legend-row:last-child{ border-bottom:none; }
+  .search{
+    width:100%; padding:8px 12px; border:1px solid var(--line); border-radius:6px; font-size:13px;
+    margin-bottom:10px; background:#fdfcf8;
+  }
+  .search:focus{ outline:none; border-color:var(--leaf); }
+  footer{ max-width:1220px; margin:0 auto; padding:0 32px 50px; font-size:12px; color:var(--muted); line-height:1.6; }
+  footer h3{ font-size:12.5px; color:var(--soil); margin-bottom:8px; }
+  canvas{ max-width:100%; }
+  .mini-list{ list-style:none; margin:0; padding:0; font-size:12.5px; }
+  .mini-list li{ display:flex; justify-content:space-between; gap:8px; padding:6px 0; border-bottom:1px dashed var(--line); }
+  .mini-list li:last-child{ border-bottom:none; }
+  .mini-list .t{ color:var(--ink); flex:1; }
+  .mini-list .n{ color:var(--muted); white-space:nowrap; font-variant-numeric:tabular-nums; }
+  @media (max-width:900px){
+    .kpis{grid-template-columns:repeat(2,1fr);}
+    .grid-2, .two-col{grid-template-columns:1fr;}
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="rows"></div>
+  <div class="eyebrow">Indian Farmer &middot; YouTube + Course Promotion</div>
+  <h1>90-Day Channel Performance Dashboard</h1>
+  <p>Jan 19 – Apr 18, 2026 &nbsp;|&nbsp; Content and traffic data from YouTube Studio export</p>
+</header>
+
+<main>
+
+  <div class="filterbar">
+    <div class="segmented" id="typeFilter">
+      <button data-f="all" class="active">All content</button>
+      <button data-f="short">Shorts</button>
+      <button data-f="long">Long-form</button>
+    </div>
+    <span class="hint">Filters the KPIs, table and scatter charts below</span>
+    <span class="count" id="filterCount"></span>
+  </div>
+
+  <section class="kpis" id="kpis"></section>
+
+  <section>
+    <h2 class="section-title">How concentrated is performance?</h2>
+    <p class="section-sub">Videos ranked by views, cumulative share of total views vs. cumulative share of videos. The dashed line is what "every video performs equally" would look like.</p>
+    <div class="grid-2">
+      <div class="card"><canvas id="paretoChart" height="220"></canvas></div>
+      <div class="card">
+        <div class="legend-row"><span>Views from top 10% of videos</span><b>68.3%</b></div>
+        <div class="legend-row"><span>Views from top 20% of videos</span><b>81.3%</b></div>
+        <div class="legend-row"><span>Views from bottom 50% of videos</span><b>~4%</b></div>
+        <div class="callout" style="margin-top:14px;">
+          <b>So what:</b> performance is extremely concentrated — one in ten videos accounts for over two-thirds of all views. Format decisions (Shorts vs. long-form, cadence, thumbnails) matter less than identifying <i>which specific ideas</i> are hit-worthy before committing budget or a full production cycle to them. A handful of proven concepts (poultry setups, viral "jugaad"/hack videos) are doing most of the work.
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2 class="section-title">Reach vs. subscriber conversion</h2>
+    <p class="section-sub">Every video plotted by views (log scale) against subscribers gained. Shorts cluster in high-reach/low-conversion territory; long-form does the opposite.</p>
+    <div class="grid-2">
+      <div class="card"><canvas id="scatterChart" height="260"></canvas></div>
+      <div class="card">
+        <div class="legend-row"><span>Subscribers gained per 1,000 views</span><b><span id="m_sub_short"></span> Shorts &nbsp;/&nbsp; <span id="m_sub_long"></span> Long-form</b></div>
+        <div class="legend-row"><span>Avg. retention (watch time ÷ video length)</span><b><span id="m_ret_short"></span>% / <span id="m_ret_long"></span>%</b></div>
+        <div class="legend-row"><span>Share of total watch-hours</span><b><span id="m_wh_short"></span>% / <span id="m_wh_long"></span>%</b></div>
+        <div class="legend-row"><span>Share of views</span><b><span id="m_views_short"></span>% / <span id="m_views_long"></span>%</b></div>
+        <div class="callout" style="margin-top:14px;">
+          <b>So what:</b> Shorts hold viewers for a <b>higher percentage</b> of their (short) runtime, but long-form's much greater absolute length means it still supplies over half of total watch-hours — and converts subscribers at roughly <b>5x</b> the rate per view. Reach and loyalty are being built by two different formats; neither should be judged on the other's metric.
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2 class="section-title">Thumbnail pull vs. algorithmic reach</h2>
+    <p class="section-sub">CTR (y) against views (x, log scale). Bottom-right = videos the algorithm pushed hard despite a weak thumbnail/title. Top-left = strong hooks that never got distribution.</p>
+    <div class="grid-2">
+      <div class="card"><canvas id="ctrScatter" height="260"></canvas></div>
+      <div class="card">
+        <p style="font-size:12.5px; font-weight:700; color:var(--soil); margin:0 0 6px;">Hidden gems — high CTR, below-median views</p>
+        <ul class="mini-list" id="gemsList"></ul>
+        <p style="font-size:12.5px; font-weight:700; color:var(--soil); margin:16px 0 6px;">Reach without pull — top-quartile views, weakest CTR</p>
+        <ul class="mini-list" id="rnpList"></ul>
+      </div>
+    </div>
+    <div class="callout alt" style="margin-top:14px;">
+      <b>So what:</b> the "hidden gems" prove the channel can produce hooks that pull 10–12% CTR — those titles/thumbnails are worth re-using as templates. The "reach without pull" videos got algorithmic distribution anyway (mostly Shorts feed), so their weak CTR isn't costing views today — but it's a signal those thumbnails would underperform if pushed through a CTR-sensitive surface like Browse or Search.
+    </div>
+  </section>
+
+  <section>
+    <h2 class="section-title">Reliable floor vs. lottery ticket: how consistent is each format?</h2>
+    <p class="section-sub">Video count by view-count bracket. Long-form spreads across the whole range with 89 videos stuck under 5K views; Shorts have almost no videos below 5K but a real shot at 1M+.</p>
+    <div class="card"><canvas id="distChart" height="110"></canvas></div>
+    <div class="callout" style="margin-top:14px;">
+      <b>So what:</b> Shorts effectively guarantee a view floor — the algorithm gives nearly every Short some minimum distribution — while long-form is a much wider gamble: 89 long-form videos (38% of all long-form) landed under 5K views. If the goal is dependable reach, Shorts are the lower-risk bet; if the goal is a rare breakout, both formats can go viral, but long-form's downside is far more common.
+    </div>
+  </section>
+
+  <section>
+    <h2 class="section-title">Most efficient videos: who's actually earning subscribers?</h2>
+    <p class="section-sub">Top 10 videos by subscribers gained per 1,000 views (min. 5,000 views, to filter out noise). Every single one is long-form.</p>
+    <div class="card">
+      <table>
+        <thead><tr><th>#</th><th>Video</th><th>Views</th><th>Subs</th><th>Subs / 1,000 views</th></tr></thead>
+        <tbody id="effTable"></tbody>
+      </table>
+    </div>
+    <div class="callout" style="margin-top:14px;">
+      <b>So what:</b> all 10 most subscriber-efficient videos are long-form — none are Shorts. This isn't a marginal tilt, it's total separation between the two formats on this metric. If subscriber growth (not just view count) is the goal, long-form deserves a larger share of the content calendar than its 8% view-share would suggest.
+    </div>
+  </section>
+
+  <section>
+    <h2 class="section-title">Posting cadence vs. views generated</h2>
+    <p class="section-sub">Videos published inside the 90-day window, grouped by week. More uploads did not reliably mean more views.</p>
+    <div class="card"><canvas id="cadenceChart" height="110"></canvas></div>
+    <div class="callout" style="margin-top:14px;">
+      <b>So what:</b> the week of Feb 9 posted 5 videos and pulled 2.8M views; the week of Jan 26 posted <i>more</i> videos (6) but only drew 827K. Cadence alone doesn't predict performance — this argues against a "post more, worry later" schedule and for a smaller number of higher-conviction uploads per week.
+    </div>
+  </section>
+
+  <section>
+    <h2 class="section-title">Best day to publish</h2>
+    <p class="section-sub">Average views by weekday of publish, across the full video catalog (not just the 90-day window).</p>
+    <div class="grid-2">
+      <div class="card"><canvas id="weekdayChart" height="220"></canvas></div>
+      <div class="card">
+        <div id="weekdayList" class="mini-list"></div>
+        <div class="callout alt" style="margin-top:14px;">
+          <b>So what:</b> Thursday uploads average <b>135K views</b> — over 2.5x Monday's 53K — despite Friday being by far the most-used publish day (173 videos). The channel is heaviest on the day that performs worst on average. Shifting even a portion of Friday's volume to Wednesday/Thursday is a free reach gain, no new content required.
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2 class="section-title">Long-form: is there a sweet spot for length?</h2>
+    <p class="section-sub">Long-form videos only, bucketed by duration. Retention (% of runtime watched) falls steadily as videos get longer — but average views rise.</p>
+    <div class="card"><canvas id="durationChart" height="110"></canvas></div>
+    <div class="callout" style="margin-top:14px;">
+      <b>So what:</b> retention rate and raw views move in opposite directions as videos get longer — 25+ minute videos hold only 17% of their runtime on average but still pull the most views per video, likely because in-depth "A to Z" guides get more search/browse distribution. Don't chase retention % alone as a length signal; a shorter video with higher retention isn't necessarily outperforming a longer one on total reach.
+    </div>
+  </section>
+
+  <section>
+    <h2 class="section-title">Where the views come from</h2>
+    <p class="section-sub">Traffic source mix and click-through rate, where YouTube reports it.</p>
+    <div class="card"><canvas id="trafficChart" height="140"></canvas></div>
+  </section>
+
+  <section>
+    <h2 class="section-title" id="tableTitle">Top videos by views</h2>
+    <div class="card">
+      <input type="text" class="search" id="tableSearch" placeholder="Search video titles…">
+      <div style="max-height:420px; overflow:auto;">
+      <table id="topTable">
+        <thead><tr>
+          <th data-k="t">Video</th>
+          <th data-k="type">Type</th>
+          <th data-k="v">Views<span class="arrow">▼</span></th>
+          <th data-k="s">Subs</th>
+          <th data-k="ctr">CTR</th>
+          <th data-k="ret">Retention</th>
+        </tr></thead>
+        <tbody></tbody>
+      </table>
+      </div>
+    </div>
+  </section>
+
+  <div class="two-col">
+    <section>
+      <h2 class="section-title">Audience geography</h2>
+      <p class="section-sub">Top countries by views (India = 92.4% of all views, off-scale — see KPI/notes).</p>
+      <div class="card"><canvas id="geoChart" height="220"></canvas></div>
+      <p class="section-sub" style="margin-top:22px;">Countries with the deepest engagement (min. 1,000 views) — average view duration vs. India's 70s baseline.</p>
+      <div class="card"><canvas id="geoEngChart" height="200"></canvas></div>
+      <div class="callout" style="margin-top:14px; font-size:12.5px;">
+        <b>So what:</b> Canada, the US, and the UK watch 40–65% longer per session than the India baseline despite being a small fraction of total views — a qualified diaspora/NRI audience that's more likely to have disposable income for a paid course. Worth a small, separate promo test targeting these markets rather than assuming India-only demand.
+      </div>
+    </section>
+    <section>
+      <h2 class="section-title">Course promotion: what the data shows</h2>
+      <p class="section-sub">Only 4 videos promoted the Shimla Mirch (capsicum) course in this window.</p>
+      <div class="card">
+        <table>
+          <thead><tr><th>Video</th><th>Views</th><th>CTR</th></tr></thead>
+          <tbody>
+            <tr><td>"Shimla Mirch...PROFIT" promo</td><td>411,670</td><td><span class="pill good">8.19%</span></td></tr>
+            <tr><td>"Course...PROFIT ki chaabi"</td><td>56,895</td><td><span class="pill good">7.05%</span></td></tr>
+            <tr><td>Launch livestream clip</td><td>4,103</td><td><span class="pill warn">3.33%</span></td></tr>
+            <tr><td>"Course link pin comment"</td><td>14,521</td><td><span class="pill warn">0.94%</span></td></tr>
+          </tbody>
+        </table>
+        <div class="callout" style="margin-top:14px;">
+          <b>Gap found:</b> no enrollment, revenue, or Courses-platform data exists in the source file — only these 4 videos reference the course. CTR swings from 0.9% to 8.2% and there's no way to see whether views converted to sign-ups.
+        </div>
+        <div style="margin-top:16px;"><canvas id="courseBenchChart" height="140"></canvas></div>
+        <p style="font-size:12px; color:var(--muted); margin:8px 0 0;">Course-promo videos average <b>4.9% CTR</b> — below the channel average (6.5%) and below long-form's own average (6.6%). The promo hook is currently the weakest link, not the topic.</p>
+      </div>
+    </section>
+  </div>
+
+  <section>
+    <h2 class="section-title">Daily average view duration — full channel</h2>
+    <p class="section-sub">90-day trend, all content combined. Hover to see any day's value.</p>
+    <div class="card"><canvas id="trendChart" height="90"></canvas></div>
+  </section>
+
+  <section>
+    <h2 class="section-title">Does retention hold up as a video ages?</h2>
+    <p class="section-sub">Daily average view duration for the 5 individually-tracked videos over the 90-day window. Hover to compare all 5 on any given day.</p>
+    <div class="card"><canvas id="videoTrendChart" height="110"></canvas></div>
+    <div class="callout" style="margin-top:14px;">
+      <b>So what:</b> retention for these videos stays roughly flat across the window rather than decaying — viewers arriving later (via search or suggested) watch about as much as early viewers did. That's a sign of genuinely evergreen content, and it argues for reusing these topics/formats rather than treating them as one-off spikes.
+    </div>
+  </section>
+
+</main>
+
+<footer>
+  <h3>Data cleaning notes</h3>
+  <p>
+  • A summary <b>"Total" row</b> was mixed into the per-video table — excluded from all video-level breakdowns and used only for channel-wide KPIs.<br>
+  • The per-video list (498 rows) sums to ~43.6M views, about 2.8% below the reported channel total of 44.88M — this export appears to exclude a long tail of very-low-view videos, so video-level splits reflect ~97% of total views, not 100%.<br>
+  • <b>2 videos</b> show a negative net subscriber count (more unsubscribes than subscribes while watching) — kept as-is, a valid YouTube metric, not an error.<br>
+  • <b>1 video</b> has 0 recorded impressions, making CTR mathematically undefined — left blank rather than defaulted to zero.<br>
+  • Impressions/CTR are only reported by YouTube for 5 of 19 traffic sources — structurally blank, not missing data.<br>
+  • The "Chart data" tab tracks daily trends for only 5 individual videos; the "Totals" tab has only a daily average-view-duration series — day-by-day trending below the whole-channel level is limited by the source export.<br>
+  • The brief mentions a "Courses platform" — no such data exists in this file; course activity was inferred from the 4 videos whose titles reference the course.
+  </p>
+</footer>
+
+<script>
+const D = {"videos": [["कम जगह, कम पानी में झटपट मिलेगा चारा 🤩💯Hydroponic Fodde", 243461, 1383, 5.95, 1834.0, 360, 19.6, 24390.7, 3199765, false], ["5 Star Resort Jaisa Poultry Farm 😍🐔 #indianfarmer #shor", 3583454, 3972, 6.38, 57.0, 38, 66.7, 23594.8, 320356, true], ["झटपट बनेगा चारा..फटाफट होगा काम 🚜✅ #indianfarmer #short", 3460891, 3047, 6.38, 51.0, 39, 76.5, 19552.1, 572654, true], ["सहजन से होगा छप्परफाड़ PROFIT🌿💰Moringa Farming की A to ", 185704, 1101, 8.37, 1879.0, 356, 18.9, 18397.7, 1726325, false], ["Waste नहीं, खेत का कचरा भी Business है! 🌾📈💰 #indianfarm", 1679603, 884, 4.93, 72.0, 54, 75.0, 14745.8, 152409, true], ["ऐसा फार्म हो तो PROFIT भाग के आएगा💰🤩 #indianfarmer #sho", 2252148, 1796, 6.34, 57.0, 36, 63.2, 13227.8, 224246, true], ["Sahi Timing pe Sahi Kaam karna Zaruri hai ✅⚠️ #indianfa", 1636780, 2034, 7.53, 46.0, 33, 71.7, 10339.0, 73053, true], ["Pipeline और Road दोनों सही सलामत ✅🚜 #indianfarmer #shor", 1179799, 385, 6.34, 66.0, 42, 63.6, 9732.2, 159498, true], ["Guava Farming की ऐसी तकनीक 😱 दुनिया में कहीं नहीं 💰 अब ", 125793, 327, 6.56, 1022.0, 258, 25.2, 9036.3, 1396139, false], ["कैसे शुरू करें Biofloc Fish Farming? 🐟 ₹2 लाख से सालाना", 93592, 473, 6.97, 1863.0, 341, 18.3, 8869.7, 1022476, false], ["ये सुबह सब्जी लगाते हैं और शाम को नोट छापते हैं 💰 | New", 120661, 722, 9.16, 1644.0, 256, 15.6, 8602.6, 1043765, false], ["जुगाडू किसान जुगाड़ू पोल्ट्री फार्म, 35 दिन में हुआ इतना", 80447, 425, 6.79, 1497.0, 380, 25.4, 8500.6, 983082, false], ["कैसे शुरू करें Goat Farming ?🤔💯Zero से Hero बनने का Bus", 55956, 297, 7.7, 2951.0, 533, 18.1, 8300.0, 577663, false], ["Drip लगाओ, फालतू खर्चा हटाओ💡Drip Irrigation Full Guide💧", 61999, 703, 6.78, 3606.0, 447, 12.4, 7698.3, 704044, false], ["बिना इन्वेस्टमेंट का देसी पोल्ट्री फार्म का बिजनेस🐔🤑💯Be", 56960, 239, 4.49, 1481.0, 463, 31.3, 7338.4, 760478, false], ["तीखी मिर्ची से मीठा पैसा💰🌶️ Chilli Farming | 9 लाख कमान", 51934, 321, 6.42, 3931.0, 474, 12.1, 6839.4, 619677, false], ["घंटों का काम मिनटों में 😱🚜 #indianfarmer #shorts", 691015, 428, 6.83, 77.0, 52, 67.5, 6503.6, 185678, true], ["दुनिया में कोई नहीं बताएगा ये 😱🚨 Secret System से Lifet", 94811, 170, 7.47, 1276.0, 226, 17.7, 5975.8, 1008412, false], ["किसान बना Goat Farming का King 👑🐐 असली Beetal Breed का ", 67820, 272, 5.88, 1566.0, 316, 20.2, 5968.3, 905703, false], ["बस छोटा सा काम 💥 और सालों का समाधान💧😳 #indianfarmer #sh", 678197, 160, 7.6, 65.0, 40, 61.5, 5181.9, 318717, true], ["6 हज़ार में खरीदा कचरा ?😳💸  #indianfarmer #shorts", 841912, 309, 8.41, 47.0, 38, 80.9, 5165.1, 608251, true], ["एक Solution से बचेगा लाखों का नुकसान 😱💰 #indianfarmer #", 590041, 378, 8.11, 77.0, 48, 62.3, 4929.9, 252948, true], ["एक जुगाड़ बचाएगा आपके ₹30 लाख 🤯💯 #indianfarmer #shorts", 717513, 998, 7.78, 56.0, 41, 73.2, 4882.6, 200071, true], ["मुर्रा भैंस से होगी छप्पर फाड़ कमाई😱💯एक दिन में 1200 लीट", 46046, 203, 5.18, 1485.0, 376, 25.3, 4822.0, 624250, false], ["असली Beetal का देसी फार्म 😎🐐पूरा Video देखने के लिए ऊपर", 891072, 1399, 8.03, 45.0, 32, 71.1, 4799.7, 111818, true], ["जिंदगी में ऐसा Video कभी नहीं देखा होगा😱💯100 टन गन्ने क", 33268, 220, 7.47, 3492.0, 494, 14.1, 4565.9, 361651, false], ["अजीबोगरीब केकड़ा ट्रैक्टर😱🤯Swaraj Code Tractor #indianf", 733105, 1372, 6.17, 41.0, 25, 61.0, 4312.8, 8016818, true], ["अफीम की खेती कैसे करें?😳लाइसेंस, नियम और PROFIT 🤩🤑 Khas", 104943, 377, 8.66, 527.0, 147, 27.9, 4303.9, 696868, false], ["WASTE से बनाओ BEST🔥💯Bamboo Pellets से होगा करोड़ों का P", 70936, 422, 7.28, 1155.0, 211, 18.3, 4167.2, 802743, false], ["बिना बिजली, बिना हवा काम होगा धुआंधार 😱🚜 #indianfarmer ", 559827, 328, 8.49, 57.0, 37, 64.9, 4112.0, 444472, true], ["ये सिर्फ़ घास नहीं, चलता-फिरता पैसा है! 😲🌾💰 #indianfarm", 585517, 151, 6.93, 67.0, 33, 49.3, 3984.8, 235614, true], ["Rainwater Harvesting का देसी जुगाड़ 🌧️🚰 #indianfarmer #", 629240, 161, 5.14, 49.0, 34, 69.4, 3945.9, 130987, true], ["एक ही Farm में बकरी और मुर्गी😱💯खर्चा होगा कम Profit होग", 56185, 274, 7.21, 969.0, 236, 24.4, 3697.7, 618947, false], ["22 एकड़ Ginger Farming मैं बंपर कमाई💯💰एक एकड़ में होगा इत", 26380, 145, 8.63, 2439.0, 485, 19.9, 3554.5, 225327, false], ["मिट्टी का जादू, पैसों की बारिश💰💵Cauliflower Farming | 7", 39521, 235, 5.51, 2165.0, 316, 14.6, 3477.1, 585362, false], ["महीने का 1 लाख ऐसे कमाओ⚡💰Papaya Farming | खेती का गेमचे", 27372, 113, 8.11, 2622.0, 448, 17.1, 3412.7, 260684, false], ["मोती की खेती A to Z सर्जरी, ट्रेनिंग तक की जानकारी💰👌Pea", 37610, 362, 9.23, 1047.0, 324, 30.9, 3387.7, 335252, false], ["टमाटर खेती एक तरफ बाकि खेती एक तरफ 🍅😱🤯 King of All Vege", 24866, 163, 5.93, 2056.0, 486, 23.6, 3361.3, 288126, false], ["यहाँ सिर्फ़ एक ही बंदा काफ़ी है 💪🚜 #indianfarmer #short", 453707, 259, 9.26, 49.0, 42, 85.7, 3352.1, 164246, true], ["करोड़ों की कमाई💯😱सबसे बड़ा Hi-Tech डेयरी फार्म | Dairy ", 30382, 96, 4.62, 1262.0, 395, 31.3, 3334.5, 341975, false], ["सिर्फ 5 एकड़ में ₹2 करोड़ कमाई💰🤯 #indianfarmer #shorts", 536586, 532, 9.01, 46.0, 33, 71.7, 3253.1, 1090571, true], ["ना खर्चे का टेंशन ना काम का😱💯घर बैठे करें Crab Farming🦀", 34086, 184, 9.03, 1614.0, 307, 19.0, 2912.6, 292028, false], ["IIT इंजीनियर ने बनाया BUSINESS MODEL...अब किसान को मिले", 36577, 94, 5.66, 1126.0, 286, 25.4, 2912.6, 466755, false], ["इंडिया में पहली बार अमेरिकन ब्लूबेरी की खेती😳💯Blueberry", 29031, 159, 6.82, 1482.0, 351, 23.7, 2832.2, 316342, false], ["Biofloc Fish Farming से होगी छप्परफाड़ कमाई😱💯ऐसे करें घ", 36238, 142, 8.28, 1279.0, 280, 21.9, 2827.3, 347880, false], ["Part-Time काम, Full-Time कमाई 💥😱Vermicompost Business P", 22669, 246, 6.97, 1731.0, 444, 25.6, 2799.9, 243191, false], ["कटहल के खेती से पैसा ही पैसा😱🤑सालाना होगी 86 लाख की कमा", 27199, 171, 8.0, 1522.0, 367, 24.1, 2774.4, 272382, false], ["पैसा उगाओ, सपने सजाओ💸🫑 पैसा छापने वाली खेती | Capsicum ", 19292, 115, 6.01, 3770.0, 517, 13.7, 2771.2, 225224, false], ["Watermelon Farming की A to Z जानकारी 🍉🚜 Fruit Farming P", 34633, 92, 4.72, 1557.0, 285, 18.3, 2745.2, 539825, false], ["कौनसी फसलें देंगी 2026 में सबसे बड़ा PROFIT? 😱📈 High Pr", 30740, 241, 4.55, 1130.0, 320, 28.3, 2736.6, 501199, false], ["Tyre का ऐसा आविष्कार कहीं देखा नहीं होगा😱🔥 #indianfarme", 450846, 161, 6.86, 52.0, 31, 59.6, 2658.1, 108833, true], ["GRASS FARM से करोड़ों की कमाई? 😲 | 200 Acre नेपियर फार्", 31238, 157, 8.04, 2237.0, 305, 13.6, 2652.8, 290926, false], ["अफीम के खेतों से आता है खसखस🤯🤔 #indianfarmer #shorts", 404141, 459, 8.01, 44.0, 34, 77.3, 2575.7, 1473343, true], ["एक महीने की कमाई 22,00,000 रु😱💰करोड़ों कमाने वाला Dairy", 341293, 512, 6.45, 56.0, 41, 73.2, 2440.0, 777845, true], ["महिला किसान ने खड़ा किया ₹50 लाख का Business💰😯घर बैठे क", 19405, 80, 6.9, 2890.0, 448, 15.5, 2416.9, 208984, false], ["सही System = ज्यादा PROFIT💰🫑 आज ही हमारा Shimla Mirch C", 411670, 808, 8.19, 70.0, 36, 51.4, 2399.0, 230589, true], ["Plastic की कर दो छुट्टी❌💯Eco Friendly थाली बनाकर कमाए ल", 57215, 163, 8.42, 744.0, 146, 19.6, 2323.7, 541242, false], ["100 दिन में 9 LAKH कमाने का मौका🚀💰Cucumber Farming | कक", 18899, 92, 6.6, 2685.0, 438, 16.3, 2303.0, 215208, false], ["अब होगी पैसों की बारिश 💰🌧️Tension Free Kheti का असली रा", 39061, 165, 6.29, 758.0, 210, 27.7, 2279.2, 469500, false], ["5 महीने में 15 लाख कमाओ 🍅💰Tomato Farming | IT इंजीनियर ", 13560, 51, 6.12, 3670.0, 570, 15.5, 2148.2, 155629, false], ["8 महीनों में होगी ₹24 लाख की कमाई?💰⏳ #indianfarmer #sho", 328957, 514, 9.5, 51.0, 36, 70.6, 2126.3, 1190622, true], ["फौजी ने घर बैठे की मशरूम की खेती 🍄👌😱 Zero Investment Mu", 22641, 118, 6.86, 1393.0, 333, 23.9, 2096.1, 248884, false], ["अब मोटर डूबेगी नहीं, तैरेगी 😲💧 Floating Motor से Smart ", 353229, 63, 7.25, 48.0, 35, 72.9, 2023.1, 255363, true], ["18 साल की लड़की बनी करोड़पति 🤑😱👩 Earn 8,00,000 Monthly Fr", 20943, 61, 6.23, 1978.0, 347, 17.5, 2020.7, 254473, false], ["बिना मिट्टी के उगाओ चारा🤯12 महीना…NO Tension💯🚜 #indianf", 209438, 241, 7.32, 139.0, 57, 41.0, 2008.6, 92747, true], ["प्याज़ में कर दी PHD 👨‍🎓🧐 खोल दिये सारे राज || Onion Far", 18076, 89, 6.37, 1921.0, 393, 20.5, 1977.5, 217638, false], ["Papaya Farming में होगा 7 लाख का Profit🤑💯Full Video जल्", 266873, 231, 5.65, 57.0, 39, 68.4, 1894.6, 400246, true], ["15 करोड़ का फार्म🐮3 CRORE PROFIT💯200 Cows का Dairy Farm", 22458, 108, 6.78, 1491.0, 300, 20.1, 1876.4, 236851, false], ["राजू 1 का 10 करने वाली Scheme🤑💰 #indianfarmer #shorts", 414199, 568, 5.79, 37.0, 30, 81.1, 1842.3, 970787, true], ["एक बार लगा डाला…तो लाइफ झिंगालाला😎🤩 #indianfarmer #shor", 195365, 113, 8.8, 75.0, 52, 69.3, 1822.4, 238739, true], ["10,000 Crore का Dairy Empire 🐄 | Dashrath Mane - Sonai ", 19136, 79, 5.84, 3832.0, 342, 8.9, 1821.5, 248308, false], ["Foreign के तकनीक से की Avocado Farming😱💯कमाई देख कर हैर", 17987, 105, 8.18, 2143.0, 364, 17.0, 1819.2, 165211, false], ["न बिजली ना टेंशन....सोलर से लाइफटाइम इरीगेशन | Solar Wa", 30316, 252, 7.04, 888.0, 211, 23.8, 1784.4, 348415, false], ["ये Pig Farming नहीं 🐷 ये Paisa Farming है 🤑 || Best Agr", 24973, 104, 10.26, 852.0, 252, 29.6, 1751.7, 215239, false], ["Z+ सुरक्षा वाला Tractor 😱🚜 #indianfarmer #shorts", 254147, 66, 7.9, 62.0, 38, 61.3, 1724.4, 175677, true], ["बिना Tyre वाले Tractor का कमाल💪🚜 #indianfarmer #shorts", 196339, 62, 7.09, 78.0, 48, 61.5, 1724.3, 188003, true], ["एक बार लगाओ, २० साल कमाओ 🤑 MINT 🤌 #indianfarmer #shorts", 208667, 110, 10.6, 67.0, 40, 59.7, 1705.3, 612374, true], ["कम खर्चे मैं अदरक खेती | Ginger Farming - Smart Technol", 25290, 119, 7.22, 750.0, 240, 32.0, 1692.9, 271981, false], ["दूध से लेकर Ice Cream तक सब कुछ😱💯कम Investment में Dair", 32428, 199, 9.55, 1278.0, 185, 14.5, 1668.3, 280292, false], ["अंगूर से लेकर वाइन तक 🍇🍷 A to Z Grapes Farming (2023) |", 11137, 49, 7.59, 2948.0, 537, 18.2, 1663.5, 112868, false], ["Corporate छोड़ा, America तक Organic Brand बना डाला | Tw", 11491, 76, 6.57, 4814.0, 501, 10.4, 1601.8, 128907, false], ["दुनिया का सबसे महंगा फूल 😱🌸 #indianfarmer #shorts", 238021, 60, 7.98, 59.0, 39, 66.1, 1556.2, 96901, true], ["सोने से भी ज्यादा कीमत है इसकी😱💯करोड़ों को फायदा देने व", 14029, 65, 6.9, 2094.0, 389, 18.6, 1519.5, 152535, false], ["फूल बेचकर कमा रहा है 2 लाख दिन का 🌷🤯👌 The King of Flori", 13643, 57, 6.86, 2464.0, 400, 16.2, 1519.4, 138712, false], ["ऐसी होती है इलायची की खेती😱🔥आप इलायची का उपयोग कहाँ करत", 196695, 275, 8.71, 60.0, 45, 75.0, 1486.2, 589470, true], ["Sprinkler System से खेतों में बरसे PROFIT 💦💰A to Z Irri", 19391, 99, 6.79, 1716.0, 275, 16.0, 1483.7, 223813, false], ["ड्रोन से ₹XXXXXX का धंधा✅ ट्रेनिंग, बिज़नेस और PROFIT सम", 18698, 102, 5.89, 935.0, 282, 30.2, 1467.0, 221752, false], ["तरबूज की खेती🍉🍉Watermelon Farming Techniques | Indian F", 218158, 352, 5.13, 56.0, 36, 64.3, 1450.5, 747086, true], ["जुगाड़ करके बचाया पैसा 💡💰 #shorts #indianfarmer", 187022, 63, 7.62, 62.0, 43, 69.4, 1444.6, 304160, true], ["जुगाड़ ऐसा कि NASA वाले पीछे पड़ जाएं 😱🚀 #indianfarmer ", 224680, 49, 8.55, 56.0, 36, 64.3, 1442.9, 341549, true], ["Shruti Ahire ने कैसे बनाया India का No.1 Poultry Busine", 15978, 75, 7.62, 4051.0, 324, 8.0, 1439.3, 169017, false], ["पानी है लेकिन System नहीं?🤔ये वीडियो ज़िंदगी बदल देगा💧⚙", 9341, 52, 4.53, 3078.0, 551, 17.9, 1429.9, 133559, false], ["फूल या खजाना ? 🌸💰 ₹3 लाख/kg का केसर #indianfarmer #shor", 274510, 204, 7.23, 40.0, 32, 80.0, 1412.6, 733782, true], ["50 लाख की Blueberry 🫐 पैसा ही पैसा 😱💰 #indianfarmer #sh", 363145, 285, 4.86, 32.0, 27, 84.4, 1412.2, 581708, true], ["बिना जानकारी के फैसला, महंगा पड़ेगा! ⚠️💸 #indianfarmer ", 189286, 121, 10.29, 60.0, 38, 63.3, 1351.7, 519212, true], ["दुनिया में कहीं भी रहो…खेत Online चलाओ 🌍🤯Auto Irrigatio", 11525, 107, 5.16, 2483.0, 421, 17.0, 1350.8, 152696, false], ["केकड़ा पालन se चांदी hi चांदी💰🦀 A to Z Crab Farming || I", 20900, 47, 7.63, 1208.0, 230, 19.0, 1338.8, 233245, false], ["ऐसा टैलेंटेड किसान नहीं देखा होगा | Gasman Of India🇮🇳In", 20664, 139, 7.11, 802.0, 233, 29.1, 1338.8, 211392, false], ["गरीबी से करोड़ों तक — किसान की फिल्मी कहानी 🙌💯Story of ", 7009, 23, 3.98, 6053.0, 686, 11.3, 1336.5, 120725, false], ["₹75 लाख के कर्ज से 2000 करोड़ की कंपनी तक! 💰 Story Of S", 9365, 31, 4.64, 6260.0, 508, 8.1, 1324.0, 135094, false], ["Submersible Pump कैसे बनता है? 🚜🔥Kirloskar Brothers Pum", 24852, 47, 5.24, 925.0, 190, 20.5, 1318.2, 365718, false], ["दवा भी कम, खर्चा भी कम 💯💸 #indianfarmer #shorts", 286369, 138, 7.99, 35.0, 26, 74.3, 1318.2, 130956, true], ["हमेशा PROFIT देने वाली खेती🍌💰Banana Farming | 18 महीने,", 9722, 62, 5.95, 2535.0, 485, 19.1, 1312.1, 120666, false], ["1000रु.किलो मशरुम से मालामाल कमाई🤑🤑Commercial Mushroom ", 14002, 42, 7.86, 1202.0, 333, 27.7, 1297.4, 138034, false], ["अदरक की खेती कब और कैसे की जाती है🤔Ginger Farming in In", 20571, 76, 8.79, 550.0, 223, 40.5, 1277.6, 126865, false], ["Pomegranate Farming ने बना दिया करोड़पति 💰🔥 देखो 240 टन", 12789, 77, 7.49, 1804.0, 359, 19.9, 1275.9, 136493, false], ["नारियल से बनते हैं 57 Product😱🥥सबसे बड़ा Coconut Proces", 15424, 56, 7.01, 1753.0, 297, 16.9, 1275.3, 177650, false], ["Exotic Vegetables के बादशाह👑💯आधे एकड़ से शुरू की खेती आज", 10638, 35, 6.69, 2466.0, 426, 17.3, 1261.2, 112200, false], ["50 टन/एकड़ टमाटर का राज 🍅🔐 Tomato Farming Secrets || Ind", 214272, 276, 5.6, 41.0, 32, 78.0, 1235.5, 691960, true], ["Fungicide के ये प्रकार पहले जान लो ⚠️💯 #indianfarmer #s", 167210, 342, 6.49, 64.0, 41, 64.1, 1226.5, 136324, true], ["खेती से पैसा बनाना सीखो💯🤑350 एकड़ में नारियल की खेती😱करो", 12515, 60, 8.53, 2467.0, 351, 14.2, 1221.8, 115450, false], ["IT इंजीनियर ने बनाया 40 लाख सिर्फ 2 एकर में 😲💯👌 Best Pr", 11088, 60, 6.74, 1480.0, 386, 26.1, 1190.4, 113994, false], ["1000+ करोड़ की लागत से, हज़ारों गाँवों तक पहुँचा पानी💧🏞", 154303, 42, 10.53, 55.0, 36, 65.5, 1120.4, 198709, true], ["ना खर्चे का टेंशन💯ना काम का टेंशन✅Only Profit💰 #indianf", 166080, 323, 8.56, 53.0, 36, 67.9, 1108.6, 181223, true], ["बड़े दिनों के बाद अच्छी चीज़ हाथ लगी🤩💯 #indianfarmer #s", 140194, 176, 7.37, 54.0, 39, 72.2, 1091.7, 810421, true], ["पौधों पर Wax क्यों लगाया जाता है? 😱🤔 #indianfarmer #sho", 186432, 64, 6.97, 54.0, 34, 63.0, 1082.4, 187127, true], ["घर बैठे Mushroom Farming🍄🏡2X PROFIT💰 #indianfarmer #sho", 142415, 153, 6.69, 52.0, 38, 73.1, 1080.6, 356049, true], ["जुगाड़ ऐसा करो कि लोग देखते ही रह जाएं 😱🔥 #indianfarmer", 133994, 114, 9.14, 65.0, 44, 67.7, 1059.4, 583579, true], ["टमाटर की खेती से 9 लाख की कमाई! 😲🍅 #indianfarmer #short", 226273, 315, 7.45, 45.0, 27, 60.0, 1047.8, 302277, true], ["काजू से कमाए करोड़ों रुपए🤑🔥💯Cashew Nut Processing | Ind", 13927, 127, 7.68, 986.0, 270, 27.4, 1046.9, 143706, false], ["13 एकड़ करेले से मालामाल कमाई🤑🤑Biggest Bitter Gourd Farm", 14122, 58, 6.75, 898.0, 264, 29.4, 1035.9, 171394, false], ["जुगाड़ से बनाया पूरा सिस्टम 😲🙌🌐 Jugaad for Fertigation #", 170155, 168, 6.06, 48.0, 35, 72.9, 1020.3, 747781, true], ["खजूर की खेती से होगी पैसों की बारिश🤑💯एक बार लगाओ 80 साल", 16905, 78, 7.53, 1062.0, 217, 20.4, 1019.0, 165562, false], ["देसी जीवामृत बनाने की सबसे आसान विधि | Easy and Fast Je", 23577, 136, 8.51, 372.0, 154, 41.4, 1012.5, 240959, false], ["दो दोस्तों ने खड़ा किया करोड़ों का कारोबार🔥🔥Honey Bee F", 8197, 42, 6.6, 1776.0, 443, 24.9, 1010.1, 97142, false], ["बिना बिजली बिना टेंशन करो सिंचाई😊😊सोलर पंप सिस्टम #indi", 149930, 190, 5.69, 60.0, 37, 61.7, 999.4, 743565, true], ["Bamboo Farming पर कर दी PHD😱💯कमाई देख कर हैरान रह जाओगे", 9298, 28, 6.97, 2385.0, 372, 15.6, 962.5, 100574, false], ["सबसे महंगी सब्जी की खेती 🤔❓💯 Vegetable, Medicine, Every", 11943, 76, 7.9, 927.0, 286, 30.9, 949.6, 118615, false], ["तो ये हैं गन्ना खेती का सुपर सीक्रेट🤫😮 #indianfarmer #s", 164821, 245, 5.23, 41.0, 31, 75.6, 944.2, 692340, true], ["सबसे महंगा, सबसे खतरनाक🚜💪John Deere 5405 | Indian Farme", 16245, 40, 5.53, 793.0, 209, 26.4, 944.1, 246788, false], ["5 मिनट में कैसे करे वेंचुरी फिटिंग🤔😮Venturi System For ", 14791, 72, 7.32, 749.0, 226, 30.2, 931.2, 155806, false], ["2025 की Top 3 सब्ज़ी की खेती💰लाखों की कमाई का पक्का रास", 11702, 99, 4.89, 801.0, 280, 35.0, 910.5, 154597, false], ["गोबर खाद से भर दिया खेत ? 😱🚜 #indianfarmer #shorts", 191123, 94, 5.76, 48.0, 28, 58.3, 900.8, 129202, true], ["सब्जी मंडी कैसे काम करती हैं और किसान को कितना पैसा मिल", 18969, 78, 8.36, 830.0, 168, 20.2, 888.4, 204268, false], ["ऐसे होती है Chia Seeds की खेती 🌱😱 #indianfarmer #shorts", 181146, 117, 6.42, 50.0, 29, 58.0, 879.6, 96598, true], ["मोती की खेती की लाखों कमाई??🤔🤔Pearl Farming💰👌#indianfar", 105206, 275, 6.05, 60.0, 44, 73.3, 851.5, 409461, true], ["कम जगह डबल मुर्गिया : Poultry Farming का अनोखा तरीका🤨🤨 ", 129883, 166, 5.9, 48.0, 31, 64.6, 849.9, 959116, true], ["Ek Baar Laga Dala to Life Zingalala 😎💥 #indianfarmer #s", 135549, 54, 7.22, 52.0, 38, 73.1, 848.8, 287806, true], ["मक्का की खेती मे बंपर उत्पादन के लिये ये Successful फॉर", 12082, 47, 8.12, 1066.0, 252, 23.6, 848.4, 127248, false], ["8x40 के कंटेनर में होती है Kesar 🤩 की खेती || Saffron F", 105925, 165, 5.47, 58.0, 44, 75.9, 814.5, 301558, true], ["झटका मशीन का जलवा 😱⚡ #indianfarmer #shorts", 100947, 15, 8.85, 82.0, 44, 53.7, 794.7, 66043, true], ["फिश फार्मिंग कम पानी 🐟, कम जगह मैं | Indoor Fish 🎣  Far", 9617, 20, 6.26, 1466.0, 297, 20.3, 794.5, 117403, false], ["प्लांट नर्सरी कैसे बनायें??🤔How to Make a Plant Nursery", 10371, 82, 6.97, 1004.0, 274, 27.3, 792.0, 118606, false], ["ऐसा फार्म देखा नहीं होगा💯🏭सबसे बड़ा मुर्गी पालन | Bigge", 9818, 17, 5.92, 1092.0, 288, 26.4, 787.5, 119713, false], ["दूध को भाव नहीं...तो खुद कंपनी ही खड़ी कर दी🔥🔥Mini Dair", 14881, 39, 7.69, 663.0, 187, 28.2, 773.9, 163355, false], ["गरीब किसान को अमीर बनाने वाली सोया खेती | SOYABEAN FARM", 6833, 32, 7.86, 1922.0, 399, 20.8, 758.4, 64688, false], ["एक मछली देती है एक बार में 1 लाख अंडे😱🐟ऐसा Fish Farming", 7376, 31, 6.34, 1789.0, 369, 20.6, 757.8, 80236, false], ["सारे मिनी ट्रैक्टर्स का बाप🔥😎21HP Kubota Neostar A211N ", 17028, 41, 6.19, 597.0, 159, 26.6, 754.7, 216216, false], ["15 साल का Experience एक Video में😱💯 Prawns Fish Farming", 12628, 31, 10.2, 826.0, 214, 25.9, 752.4, 108689, false], ["पैधो की करो बंधाई दुगनी होगी फसल 🍅👌 Tomato Farming Stru", 117262, 117, 4.4, 49.0, 39, 79.6, 743.3, 481429, true], ["25 साल का लड़का बेचता है '1 Kilo का एक अमरुद' 😱💯🍐 Best o", 9918, 40, 6.59, 783.0, 264, 33.7, 728.6, 112162, false], ["हाथ से खाद छिड़कना आज ही बंद करो ⚠️🌾 #indianfarmer #sho", 111250, 40, 3.26, 59.0, 38, 64.4, 728.0, 87323, true], ["क्यों बिकते हैं अल्फांसो आम इतने महंगे🤔💯Alphonso Mango ", 8738, 21, 7.2, 1482.0, 298, 20.1, 725.1, 89787, false], ["क्या इस प्रकार का नींबू आपने देखा था ❓😱Seedless Lemon #", 151794, 158, 6.13, 33.0, 25, 75.8, 709.8, 695385, true], ["आदमी की जरूरत ही नहीं🚷❌एक बटन पे लाखों अंडे😱😱Biggest Po", 12331, 42, 6.94, 696.0, 206, 29.6, 707.1, 133752, false], ["मालामाल भुट्टा खेती 🌽🌽मक्का खेती की जानकारी | Sweet Cor", 10841, 62, 9.01, 763.0, 229, 30.0, 691.7, 104475, false], ["ये काम कर लो, वरना आम तो गए 😱🥭🚨 #indianfarmer #shorts", 112683, 40, 7.0, 63.0, 38, 60.3, 690.8, 194682, true], ["बिना खाए पता करो अंगूर की मिठास🍇 😋 #indianfarmer #short", 146810, 101, 6.17, 44.0, 32, 72.7, 687.8, 372207, true], ["कभी भी, कहीं भी चलेगा ये जुगाड़! 😎🔧 #indianfarmer #shor", 98549, 31, 6.6, 75.0, 43, 57.3, 680.2, 141751, true], ["Tomato Farming का सही तरीका 🌱🍅 छप्परफाड़ PROFIT की गारं", 11808, 66, 5.36, 652.0, 206, 31.6, 678.1, 173280, false], ["Fish Farming से करोड़ों का Empire 🏞️💸 जानो कैसे शुरू कर", 5985, 23, 5.87, 1664.0, 394, 23.7, 656.0, 74425, false], ["12 महीने गेंदे की खेती - 60 Rs Kilo 👌 || Marigold Flowe", 110592, 357, 5.25, 48.0, 32, 66.7, 651.1, 616526, true], ["मुंबई से गाँव तक, महिला किसान का सफर🚀💯खुद के दम पर खड़ा", 5611, 45, 5.99, 1886.0, 412, 21.8, 642.7, 68281, false], ["लपेटा पाइप लपेटने वाला जुगाड़ 😱🚜 #indianfarmer #shorts", 150968, 32, 6.14, 41.0, 27, 65.9, 642.2, 135007, true], ["लाल पीली शिमला मिर्च से लाखों का PROFIT💯🤑22 एकड़ में की", 8528, 22, 7.54, 1377.0, 270, 19.6, 641.8, 89910, false], ["बिना मिट्टी की Orchid Flower की खेती🔥💐Watch Full Video ", 111312, 99, 9.06, 47.0, 30, 63.8, 637.9, 265630, true], ["महीना लाखो कमाई वाला अनोखा Poultry Farm 😯😯  | Indian Fa", 99078, 159, 4.11, 51.0, 36, 70.6, 631.8, 365485, true], ["हर दिन नोट छापने की खेती💰💯ATM Farming | New Business Mo", 5069, 9, 6.9, 1659.0, 447, 26.9, 630.7, 44758, false], ["सोने का अंडा देने वाली सीताफल खेती💎👌Custard Apple Farmi", 6628, 26, 6.46, 1501.0, 335, 22.3, 618.5, 77708, false], ["बुवाई में लगी प्रति एकड़ 1000 किलो अदरक 😱✅🔥 Double Drip ", 106273, 254, 6.94, 39.0, 30, 76.9, 601.4, 479346, true], ["बारिश Villain बने या Hero..फसल हमेशा Superhit रहेगी 🚜🎬 ", 113207, 47, 8.53, 40.0, 29, 72.5, 601.2, 99555, true], ["राजू पैसे कमाने की और एक Scheme 😅💰 #indianfarmer #short", 102567, 83, 7.81, 44.0, 33, 75.0, 596.7, 371582, true], ["बिना झिकझिक दो-मिनट मैं लीकेज रिपेयर🔥🔥देसी जुगाड़ | Easy", 12661, 33, 8.54, 628.0, 169, 26.9, 595.8, 108372, false], ["उल्टे पत्ते सीधे करो 💯😷Thrips Attack & Control | Crop D", 7730, 79, 6.4, 947.0, 276, 29.1, 594.6, 96867, false], ["तगड़ा Management, तगड़ा PROFIT💰🚜 #indianfarmer #shorts", 112685, 40, 9.42, 54.0, 31, 57.4, 578.2, 306212, true], ["2024 की सबसे पहली और अनोखी खेती 🍈😱👌 Earn Money with Ame", 7201, 37, 8.58, 1131.0, 287, 25.4, 575.3, 65766, false], ["1 मिनट में शिमला मिर्च की खेती जाने 😱👍🔥 Capcicum Farmin", 71137, 130, 8.4, 57.0, 39, 68.4, 567.2, 373733, true], ["Double Drip से बचाए 20 हजार रूपए 😲💡 Most Unique Drip Sy", 90329, 83, 4.64, 45.0, 33, 73.3, 564.0, 409196, true], ["इसको लगा डाला, तो लाइफ झिंगालाला 😎 NO. 1 हरा चारा | Com", 16781, 50, 8.63, 388.0, 120, 30.9, 562.1, 175070, false], ["मालामाल पपीता की खेती🔥| Papaya Farming |  #Shorts | Ind", 284680, 187, 5.25, 11.0, 14, 100.0, 547.0, 935584, true], ["इतना सस्ता और काम का जुगाड़ देखा नहीं होगा👀🤯#indianfarm", 70409, 97, 3.84, 60.0, 42, 70.0, 546.2, 772188, true], ["गुलाब का फूल❌पैसे बरसाने वाला फूल✅ #indianfarmer #short", 83686, 97, 7.5, 52.0, 34, 65.4, 544.3, 365780, true], ["एक ही वार में खरपतवार छूमंतर ⚔️✨ #indianfarmer #shorts", 88752, 28, 5.77, 49.0, 34, 69.4, 543.2, 120846, true], ["Pune से Europe में बेचे अंगूर🌍📦45 एकड़ Grapes Farming स", 4163, 9, 4.55, 3777.0, 468, 12.4, 541.4, 67015, false], ["मान गए 'गुरु'👏🏼👏🏼केवल दो एकड़ मैं की चार मिर्च वैरायटीस", 8674, 19, 7.35, 1126.0, 221, 19.6, 534.8, 96749, false], ["12 महीने वाला पास्ता गुलाब 🌹😱🤯 Best Variety of Rose #sh", 124101, 135, 5.98, 32.0, 23, 71.9, 530.6, 766285, true], ["कौनसा पाइप कहाँ यूज़ करे? | PVC, HDPE, Hose, Lapeta Pipe", 11413, 37, 6.64, 605.0, 167, 27.6, 529.7, 121526, false], ["लल्लनटॉप यारी जुगाड़ 😎🔥 #indianfarmer #shorts", 69001, 17, 5.65, 62.0, 43, 69.4, 528.1, 90479, true], ["Daily 70,000Rs.| 20 दिन का काम 12 घंटे मैं | Food Proce", 9718, 56, 9.27, 1113.0, 194, 17.4, 526.4, 86836, false], ["पति-पत्नी की सफलता की कहानी 💪💛हल्दी Processing का असली ", 6482, 32, 7.13, 984.0, 289, 29.4, 520.7, 65712, false], ["क्या आपने कभी लौंग का पेड़ देखा है ?🤔😱👌Clove Farming in", 100553, 127, 8.16, 38.0, 27, 71.1, 520.2, 363381, true], ["महिला किसान ने खड़ी की 6 करोड़ की Jaggery की Factory😱💯2 स", 7677, 44, 6.18, 1576.0, 242, 15.4, 516.7, 95791, false], ["1 गाय से 100 बच्चे हर साल? जानिए IVF टेक्नोलॉजी का कमाल", 5898, 20, 5.5, 1509.0, 315, 20.9, 516.3, 73302, false], ["सुपरफूड की खेती कैसे करे 🤔❓ Blueberry Farming Explained", 75869, 103, 7.72, 48.0, 36, 75.0, 499.2, 296662, true], ["भिंडी की खेती से लाखों कमाने का मौका😱💯एक ही वीडियो में ", 10020, 50, 8.16, 703.0, 179, 25.5, 498.3, 103714, false], ["भारत की सबसे बड़ी लहसुन मंडी 😳🧄 #indianfarmer #shorts", 81097, 33, 4.36, 65.0, 34, 52.3, 491.9, 99857, true], ["सही समय पर सही कदम उठाओ🌱⚠️ #indianfarmer #shorts", 76165, 36, 7.04, 64.0, 38, 59.4, 489.0, 83981, true], ["Vermicompost की अतरंगी System🚀🔧 #indianfarmer #shorts", 75551, 62, 8.41, 47.0, 34, 72.3, 488.4, 309551, true], ["Vegetable Farming कैसे शुरू करें?💰Step by Step पूरी जान", 6636, 60, 5.04, 942.0, 259, 27.5, 479.2, 89712, false], ["अब मौसम का इंतज़ार नहीं ❌ Rain Gun से जब चाहो तब बारिश ", 4796, 12, 3.21, 2136.0, 359, 16.8, 479.1, 85964, false], ["30 पैसे का जुगाड़ 🤯 कप लगाओ, गर्मी भगाओ! 🔥 #IndianFarme", 78309, 26, 9.87, 43.0, 34, 79.1, 460.1, 103024, true], ["Farming में Profit क्यों नहीं होता? | Anant More और Fra", 1881, 5, 1.99, 5894.0, 877, 14.9, 458.6, 58013, false], ["25000 एकड़ का सबसे बड़ा Chikoo Farm😱💯साल की कमाई 40 लाख", 4592, 14, 7.57, 2078.0, 359, 17.3, 458.3, 46954, false], ["एक मशीन से होंगे सारे काम💯😱Power Tiller से बच गई मेहनत👌", 9411, 41, 6.89, 707.0, 174, 24.6, 456.9, 106117, false], ["STRAWBERRY की ये बातें कोई नहीं बताएगा 🍓😲 #indianfarmer", 89892, 75, 6.44, 40.0, 32, 80.0, 455.6, 231072, true], ["क्या है BIOFLOC?🐠 #SHORTS #INDIANFARMER #FARMING #FISH", 60814, 117, 6.8, 59.0, 41, 69.5, 450.6, 200211, true], ["अंडे वाला मुर्गियों का फार्म देखो🐣🐔#indianfarmer #short", 83702, 139, 3.66, 46.0, 32, 69.6, 449.9, 598544, true], ["जितनी ज़रूरत, उतनी ही खाद 🌾 Dosing Pump से Profit Farmi", 79254, 30, 6.83, 62.0, 34, 54.8, 449.3, 221924, true], ["सिर्फ़ ₹250 में होगा काम तमाम 🔥✅ #indianfarmer #shorts", 74054, 52, 5.93, 47.0, 36, 76.6, 448.7, 92543, true], ["छोटासा जुगाड़ लाखों की फसल बचाएगा 💡💰 #indianfarmer #sho", 68541, 32, 9.1, 53.0, 36, 67.9, 448.3, 84655, true], ["Watermelon Farming की PROFIT Trick 🍉📈 #indianfarmer #sh", 76422, 40, 5.36, 63.0, 37, 58.7, 441.3, 121782, true], ["Chemical fertilizer की करो छुट्टी💯😱इस Bio Fertilizer से", 6252, 34, 6.93, 909.0, 252, 27.7, 438.3, 69608, false], ["सबसे आसान और फायदेमंद खेती😱💯Drumstick Farming की A to Z", 7285, 28, 8.09, 759.0, 216, 28.5, 438.0, 74660, false], ["1 महीने का काम 1 रात में😱किशमिश के Factory से 100x Prof", 6433, 69, 9.33, 848.0, 240, 28.3, 429.4, 58619, false], ["अश्वगंधा के खेती का रहस्य 😱🌿 #indianfarmer #shorts", 74154, 38, 6.31, 65.0, 37, 56.9, 426.0, 121692, true], ["₹1000 किलो का Superfood😱 कैसे करें मखाना की खेती?💰Makha", 7094, 21, 5.78, 688.0, 214, 31.1, 422.6, 101343, false], ["शतावरी की खेती। इसको आयुर्वेद मैं बहुत महत्वपूर्ण स्थान", 165047, 127, 2.94, 19.0, 19, 100.0, 419.1, 938182, true], ["चमकदार मक्खन घास देखो ✨🌱 #indianfarmer #shorts", 64604, 29, 8.24, 60.0, 34, 56.7, 415.7, 156575, true], ["अब एक भी पौधा नहीं मरेगा 🌱🌱 Soil Drenching Jugaad |  आळ", 9667, 51, 8.88, 645.0, 152, 23.6, 410.5, 97514, false], ["जो दिखता नहीं, वो देखना ज़रूरी है 👀🧐 #indianfarmer #sho", 64083, 32, 8.08, 49.0, 34, 69.4, 409.6, 219083, true], ["PVC पाइप से बनाया देसी जुगाड़ मछली फार्म | Farmer Earni", 7024, 12, 9.1, 1198.0, 208, 17.4, 406.5, 64626, false], ["घर पे केकड़ा पाले और लाखो कमाए 🦀🤑 Vertical Crabs Farming", 60312, 77, 7.21, 51.0, 37, 72.5, 404.8, 269619, true], ["बिना मिट्टी के उगे फूल😱💯Orchid Flower का तहलका🔥अब होगा ", 6193, 34, 7.45, 1092.0, 233, 21.3, 401.9, 65050, false], ["Factory हो या खेत, Mask लगाना जरूरी है 😷🏭 #indianfarmer", 74797, 23, 7.66, 55.0, 32, 58.2, 398.8, 240946, true], ["एक किलो चंदन की कीमत है 6000 रुपये😱💯पूरा वीडियो देखने क", 69310, 93, 4.63, 46.0, 34, 73.9, 397.4, 247916, true], ["बिना खर्च सस्ते में कैसे लगाएं ड्रिप इरिगेशन सिस्टम ?🤔😮", 4795, 19, 5.42, 1129.0, 297, 26.3, 396.7, 57604, false], ["40 Din Ka Poultry Farm Business🐔💰 #indianfarmer #shorts", 61181, 67, 2.75, 53.0, 33, 62.3, 396.5, 322427, true], ["मिट्टी नहीं बची तो दुनिया खत्म 🌍⚠️ Dr. Prafull Gadge - ", 2449, 4, 2.17, 5880.0, 580, 9.9, 394.9, 74157, false], ["अब खेतों मैं होगी बारिश | Amazing Sprinkler Irrigation ", 10464, 24, 7.95, 790.0, 134, 17.0, 390.7, 108055, false], ["तीखी मिर्ची से कमाओ 9 महीनों में ₹9 लाख🌶️💸 #indianfarme", 54605, 51, 10.71, 59.0, 37, 62.7, 387.0, 174459, true], ["ऐसे स्मार्ट किसानों के वजह से ही खेती टिकी हुई हैं🥭🥭MAN", 4534, 7, 6.32, 1193.0, 305, 25.6, 385.3, 54168, false], ["अब होगा काम आसान 😎⚙️ #indianfarmer #shorts", 60004, 21, 7.37, 54.0, 37, 68.5, 381.2, 83392, true], ["Double Profit खरबूजा खेती🤑🤑Commercial Muskmelon Farming", 7581, 32, 8.05, 734.0, 174, 23.7, 367.4, 84796, false], ["हल्दी Processing से Profit होगा दुगना😱🤑पूरा वीडियो देखन", 77222, 59, 9.49, 32.0, 26, 81.2, 361.5, 194870, true], ["15 करोड़ Dairy Farm😱रोज 1000 लीटर दूध 🐄🥛Watch Full Vide", 54726, 59, 4.32, 60.0, 37, 61.7, 358.5, 272468, true], ["कहाँ से मिलता है जायफल🤔😱🔥Nutmeg Farming #indianfarmer #", 60148, 42, 7.01, 45.0, 32, 71.1, 356.1, 115109, true], ["Battery पर चलेगा ये Grass Cutter 🔋🌿 #indianfarmer #shor", 45362, 25, 7.74, 75.0, 42, 56.0, 352.4, 176119, true], ["ये सिर्फ़ कोर्स नहीं, PROFIT की चाबी है 💰📘Link Pinned C", 56895, 113, 7.05, 60.0, 37, 61.7, 349.8, 83843, true], ["90% किसान ये नहीं करते 🚫 इसलिए Yield रुक जाती है! 🌾 #in", 77709, 32, 5.35, 47.0, 32, 68.1, 349.4, 146285, true], ["जॉब छोड़कर केले से लाखों कमाई🤑🤑Biggest Banana Farming in", 4177, 13, 5.52, 1547.0, 300, 19.4, 348.7, 62771, false], ["खतरनाक लीफ माइनर😥😥Leaf Miner Attack and Control all Inf", 6945, 35, 8.63, 431.0, 180, 41.8, 348.5, 65357, false], ["4 लाख की 200 Truck मिट्टी 😱🚛 #indianfarmer #shorts", 56850, 25, 3.4, 58.0, 37, 63.8, 348.3, 73443, true], ["नंबर वन धमाकेदार सिस्टम | Rain Gun Irrigation System A ", 6412, 26, 6.77, 553.0, 194, 35.1, 345.9, 78128, false], ["अंगूर के पेड़ के साथ खेली होली? 🍇😱🎨 #indianfarmer #shor", 66262, 31, 5.69, 58.0, 30, 51.7, 344.1, 142948, true], ["छोटा पैकेट बहोत बड़ा धमाका 🚜😱💯 Swaraj 630 by TARGET Revi", 62838, 90, 11.97, 49.0, 24, 49.0, 334.5, 301534, true], ["Rain Water Harvesting का सबसे Best तरीका💯👌#indianfarmer", 44334, 57, 3.86, 59.0, 42, 71.2, 333.6, 251879, true], ["5 मिनट में बनने वाला जुगाड़ 😱🔧 #indianfarmer #shorts", 70891, 20, 6.18, 52.0, 29, 55.8, 333.4, 133245, true], ["70रु किलो बिन्स से मालामाल कमाई🤑🤑Biggest Beans Farming ", 4372, 24, 6.79, 1106.0, 273, 24.7, 332.7, 51643, false], ["Mulching Paper के फायदे ही फायदे😱💯A to Z जानकारी एक ही ", 5397, 31, 7.18, 853.0, 221, 25.9, 332.5, 61429, false], ["अब डेरी फार्म से बनेगी बिजली ⚡😱💡 Amazing Dairy Farm Gen", 42719, 53, 7.71, 52.0, 40, 76.9, 330.9, 158917, true], ["क्या आपने कभी इलायची की factory देखी है ?🤔🔥👌Cardamom Fa", 44865, 78, 5.93, 58.0, 37, 63.8, 329.6, 133846, true], ["Seedling Tray के बिजनेस से करोड़ों का PROFIT😱🤑12 महीने ", 5388, 34, 7.45, 1005.0, 218, 21.7, 327.2, 56725, false], ["पहले सीखो, फिर खेत में उतरो 🚜📘 #indianfarmer #shorts", 84716, 115, 4.45, 43.0, 24, 55.8, 326.5, 150280, true], ["ऐसा फार्म देखा नहीं होगा💯🏭Biggest Feed Mill Factory in ", 5023, 19, 6.34, 774.0, 232, 30.0, 324.1, 60597, false], ["मेरे कुवें का सारा सिस्टम😎👌 | Indian Farmer |  #Shorts", 55915, 20, 6.42, 59.0, 36, 61.0, 323.2, 3085, true], ["गोबर खाद ही सब कुछ नहीं होता😱💯 #indianfarmer #shorts", 41677, 16, 6.5, 78.0, 46, 59.0, 318.4, 105339, true], ["ड्रैगन फ्रूट खेती | DRAGON FRUIT PLANTATION - FULL INFO", 7741, 32, 8.7, 385.0, 145, 37.7, 312.7, 76706, false], ["Perfume वाली भिंडी 😱🌿  #indianfarmer #shorts", 45816, 30, 8.6, 68.0, 35, 51.5, 310.8, 182731, true], ["हर किसान के पास pH meter होना ही चाहिए💯🌡️pH meter use #", 49285, 32, 6.06, 48.0, 37, 77.1, 310.4, 236814, true], ["हरे-भरे मटर की खेती 🌱🌾 #indianfarmer #shorts", 70779, 7, 7.4, 47.0, 28, 59.6, 310.2, 67212, true], ["कुआँ खुदाई के जुगाड़ तकनीक, सब्सिडी, खर्चा | Water Well ", 4450, 15, 6.38, 1026.0, 248, 24.2, 307.8, 53329, false], ["गेंदे के फूल पर आने वाली बीमारी 🦠🌻 Marigold Farming Dis", 47560, 79, 4.59, 53.0, 35, 66.0, 305.2, 156247, true], ["A.C / एयर कंडीशनर से लेके म्यूजिक सिस्टम तक सब हैं यहाँ", 4984, 10, 7.86, 1072.0, 220, 20.5, 305.1, 51112, false], ["हमारे खेत का नया रखवालदार💯😱👌Indian Farmer Desi Jugaad #", 48804, 52, 7.54, 38.0, 27, 71.1, 304.7, 443118, true], ["नए तरीके से मछली पालन,आप देख के दंग रह जायेंगे | Indian", 54341, 88, 3.81, 46.0, 30, 65.2, 301.0, 275720, true], ["नारियल वेस्ट से ऐसे बनता है कोकोपीट 🤩  | Modern Agricul", 39683, 67, 5.82, 60.0, 38, 63.3, 299.1, 147167, true], ["₹7000 की ख़तरनाक कैंची ✂️ एक झटके में सब साफ़ 😱 #indian", 48283, 18, 5.97, 52.0, 33, 63.5, 296.3, 97014, true], ["एक बार सुपारी लगाओ और सौ साल पैसे कमाओ🔥🔥ARECA NUT FARMI", 5237, 14, 6.52, 768.0, 198, 25.8, 288.4, 61800, false], ["3 राज जो देंगे आपको लाखो 🤯🤯Marigold Farming Secrets #sh", 71397, 91, 2.63, 31.0, 24, 77.4, 286.1, 478201, true], ["सालभर तगड़ा पैसा देगी मालामाल धनिया खेती | Commercial Co", 6502, 13, 8.75, 762.0, 158, 20.7, 286.0, 64038, false], ["5 Star जैसा Dairy Farm 🐃🏢 भैंसों के लिए बना Modern Pala", 3841, 11, 4.22, 861.0, 265, 30.8, 283.1, 56478, false], ["धुरंधर Brush Cutter का कमाल 😳🔥 #indianfarmer #shorts", 47120, 11, 9.95, 87.0, 38, 43.7, 281.9, 42112, true], ["2 एकड़ की लागत-प्रॉफिट-लॉस का पूरा कच्चाचिट्ठा🤑🤑Commerci", 4190, 18, 7.82, 781.0, 239, 30.6, 278.8, 45286, false], ["सुपारी की खेती😍 #SHORTS  #INDIANFARMER #KISAN", 42194, 84, 4.53, 57.0, 37, 64.9, 276.6, 219429, true], ["कुआँ रिचार्ज जुगाड़ | Borewell Drilling in Water Well | ", 6401, 21, 8.02, 632.0, 155, 24.5, 276.3, 62040, false], ["एक टाइम में 36 Feet तक Spray करता है ये 😲💥  Boom Spraye", 45147, 25, 3.44, 73.0, 39, 53.4, 275.9, 103412, true], ["सस्ते मै मस्त ड्रिप इरीगेशन सिस्टम | Drip Irrigation Sy", 6746, 14, 8.24, 823.0, 146, 17.7, 275.0, 70247, false], ["Scientist किसान ने बनाई 67 Varieties😱💯Mungfali की खेती ", 2464, 11, 6.66, 2653.0, 400, 15.1, 274.4, 29059, false], ["अफीम के लिए Security System 😱🔒 #indianfarmer #shorts", 46889, 5, 8.79, 52.0, 35, 67.3, 269.7, 49806, true], ["Fruit Farming का असली खेल🚀कमाई देख कर दिमाग फट जाएगा💥🤯 ", 3970, 17, 4.32, 772.0, 243, 31.5, 268.5, 70101, false], ["नाशिक का देसी जुगाड़ बकरी फार्म😮🧐Goat Farming Business ", 46977, 46, 4.25, 53.0, 34, 64.2, 266.2, 144921, true], ["फूलों की मालामाल खेती 🌹🌹 गुलाब खेती | Biggest Hi-Tech R", 5344, 24, 8.36, 860.0, 175, 20.3, 260.8, 57601, false], ["विदेशी तकनीक का कमाल - सोते हुए बना सकते हो पैसे😱🌞🌱New ", 2144, 7, 6.05, 1624.0, 434, 26.7, 258.6, 23055, false], ["Farm कैसा ना हो — इनसे सीखो 🤯🚫 #indianfarmer #shorts", 34777, 29, 7.87, 48.0, 37, 77.1, 258.3, 173559, true], ["आधुनिक पोल्ट्री फार्म बिज़नेस | Poultry Farming Business", 3230, 8, 5.81, 1194.0, 285, 23.9, 256.0, 41539, false], ["मिर्च तुड़ाई का हिसाब और बचत का हिसाब👀 #Shorts", 37145, 25, 6.05, 60.0, 43, 71.7, 249.1, 142271, true], ["जुगाड़ सिस्टम देखो🐄🐮 चलती फिरती दूध डेरी | MINI DAIRY #i", 62097, 63, 3.03, 32.0, 24, 75.0, 248.6, 416245, true], ["एक एकड़ ड्रिप का पूरा खर्चा, सब्सिडी, लाइफ | Drip Irriga", 3281, 12, 6.31, 1464.0, 271, 18.5, 247.1, 43760, false], ["Neptune Garden Mini Power Tiller/Cultivator/Weeder Full", 8156, 27, 9.0, 462.0, 108, 23.4, 245.7, 79553, false], ["Israel Technology से बिना मिटटी की खेती 😱  | Hydroponic", 33259, 80, 4.28, 58.0, 40, 69.0, 242.6, 176251, true], ["खरपतवार का 100% नियंत्रण | BEST CORN HERBICIDE SPRAY - ", 7891, 27, 12.19, 219.0, 110, 50.2, 242.4, 57371, false], ["बिना मल्चिंग और ड्रिप के जबरदस्त खेती 🍆🤩 Brinjal Farmin", 51213, 70, 5.63, 34.0, 25, 73.5, 239.5, 206441, true], ["क्या आप मल्चिंग पेपर का इस्तेमाल करते है ?🤔Comment कीजि", 33400, 37, 8.41, 48.0, 40, 83.3, 237.0, 127041, true], ["जहा देखो वहा केसर ही केसर 🥭😋 Kesar Mango Farming || Ind", 43874, 51, 7.43, 44.0, 29, 65.9, 236.7, 122731, true], ["Plantation से लेकर Harvesting तक का पूरा Plan🤑😱Capsicum", 3858, 17, 6.56, 856.0, 220, 25.7, 236.1, 47685, false], ["कितना खतरनाक होता हैं ये मशरुम??🍄🤔Farm Mushroom #shorts", 37922, 37, 3.34, 53.0, 34, 64.2, 231.4, 288759, true], ["विदेशी तकनीक से Avocado Farming😱🥑पूरा वीडियो देखने के ल", 36679, 57, 9.27, 54.0, 39, 72.2, 230.4, 72360, true], ["क्या कमाल का सिस्टम है केरल में😱💯🔥Black paper farming i", 37913, 60, 8.67, 43.0, 30, 69.8, 230.3, 181526, true], ["पानी में होनेवाली अजीब खेती | Spirulina Farming | India", 27971, 59, 6.35, 60.0, 43, 71.7, 228.2, 152388, true], ["रेन पाइप से स्मार्ट सिंचाई | Rain Pipe Irrigation Syste", 4342, 14, 7.67, 607.0, 187, 30.8, 226.5, 47303, false], ["इंडियन फार्मर का नंबर १. देसी जुगाड़ देखो🇮🇳🇮🇳Desi Jugaa", 6522, 23, 6.94, 441.0, 124, 28.1, 226.0, 71292, false], ["मालामाल टमाटर🍅🍅Tomato Farming Techniques #indianfarmer ", 44531, 33, 4.14, 39.0, 29, 74.4, 223.1, 205108, true], ["10 एकड़ हो या 100 एकड.....अब स्प्रे का कोई टेंशन नहीं |", 3997, 5, 5.48, 799.0, 200, 25.0, 222.3, 61159, false], ["ख़तम ना होने वाला पशुओं का चारा 🐄🌿😲 Non ending Animal Fe", 42872, 40, 6.68, 43.0, 26, 60.5, 217.9, 190752, true], ["LEOPARD का आतंक खत्म करने वाला पिंजरा 🐆🚨 #indianfarmer ", 43495, 32, 5.22, 49.0, 31, 63.3, 216.2, 99539, true], ["वो Spicy मसाले जिनके बिना इंडिया में खाना नहीं बनता | P", 4247, 13, 8.55, 530.0, 183, 34.5, 215.9, 41570, false], ["कमल का काजू 🌳🤑 Cashew Nut Farming || Indian Farmer #sho", 36641, 28, 6.89, 47.0, 31, 66.0, 212.9, 123563, true], ["कम लागत, ज्यादा प्रॉफिट🤑🤑गेंदे से मालामाल कमाई | Marigo", 5398, 24, 8.85, 422.0, 141, 33.4, 212.0, 53337, false], ["कमर्शियल आम खेती | Mango Farming Profit Per Acre | Mang", 3095, 12, 6.42, 882.0, 243, 27.6, 209.5, 37702, false], ["घास उगाओ, लाखों कमाओ🤑💸 Hybrid Napier Grass🌾🤯 #IndianFar", 31933, 71, 8.78, 58.0, 34, 58.6, 208.1, 111076, true], ["Thrips पे करे Control फिर देखिये मिर्च ही मिर्च 🌶 होगी ", 30275, 35, 4.64, 58.0, 43, 74.1, 207.6, 194738, true], ["आलू की खेती कब और कैसे करें🤔🤔Potato Farming Profit | आल", 4459, 13, 6.49, 736.0, 166, 22.6, 206.6, 59907, false], ["झटपट पटापट होगा काम ⚡🚜 #indianfarmer #shorts", 30025, 21, 6.07, 60.0, 38, 63.3, 206.2, 95740, true], ["गोबर का क्या होता है डेरी फार्म पे 🐄🤔 Cow dung Cleaning", 53664, 51, 2.11, 30.0, 22, 73.3, 204.6, 450760, true], ["CCTV से करते हैं पूरी खेती मैनेज | Hi-Tech Murrah Dairy", 2357, 3, 5.41, 1048.0, 311, 29.7, 204.1, 29888, false], ["खाली बियर बॉटल का अवार्ड विनिंग जुगाड़ 😳👌 Beer 🍾Bottle J", 52108, 39, 4.48, 30.0, 23, 76.7, 202.7, 303135, true], ["स्ट्रॉबेरी ने बदल दी ज़िंदगी 🤑🤑 Biggest Strawberry Farmi", 2732, 13, 6.58, 1063.0, 265, 24.9, 201.1, 34316, false], ["Contour Levelling क्या है? 🤔💧 ढलान वाले खेत का No.1 समा", 3677, 21, 2.82, 953.0, 194, 20.4, 198.8, 89323, false], ["२०० लीटर देसी जीवामृत बनाने की आसान विधि | Organic Jeev", 38532, 27, 6.69, 34.0, 35, 100.0, 198.5, 162925, true], ["₹32 लाख का Goat Farm🤯Double Profit System🐐💰 #indianfarm", 27456, 49, 4.18, 60.0, 40, 66.7, 194.6, 101275, true], ["Box Method अपनाएं शिमला मिर्च की खेती में 🌶📦 #shorts #i", 32617, 30, 6.27, 45.0, 31, 68.9, 193.6, 153225, true], ["15 साल तक होगी मालामाल कमाई🍇🍇Profit, Marketing, Variety", 3483, 12, 6.67, 839.0, 199, 23.7, 192.8, 44803, false], ["महीना लाखो की कमाई वाला Mushroom Farm 😎😎 | Indian Farme", 29149, 41, 3.58, 50.0, 36, 72.0, 192.4, 153742, true], ["Cactus से बनाई फेंसिंग वाल🌵👌 और बचाये लाखो || Cactus Gr", 40612, 32, 5.53, 35.0, 26, 74.3, 191.5, 260118, true], ["मालामाल बैंगन🍆🍆Profit, Marketing, Variety, Harvesting |", 4074, 20, 8.81, 734.0, 167, 22.8, 190.0, 39780, false], ["बांस का भूसा बेचकर हो रही लाखो की कमाई😱🤑पूरा वीडियो जल्", 20278, 23, 8.76, 59.0, 38, 64.4, 187.6, 162054, true], ["आपके यहाँ इसे क्या कहते हैं? 🤔🔥 Comment करो 👇 #indianfa", 41633, 13, 7.56, 53.0, 31, 58.5, 187.3, 81451, true], ["Chain Flood Irrigation System🌊💦#Shorts #indianfarmer", 90503, 58, 2.33, 15.0, 15, 100.0, 185.4, 691300, true], ["अगर आप ये करेंगे तो 12 महीने हरा चारा घर पे बना के पशुप", 52158, 34, 5.08, 29.0, 24, 82.8, 183.3, 241126, true], ["Tank वाले Fish Farming से ₹20 लाख PROFIT 🐟💰 #indianfarm", 28643, 23, 5.62, 60.0, 41, 68.3, 182.0, 62978, true], ["रात को भी काम करेगा STICKY TRAPS 🐛🦟 Night Trap Jugaad |", 33431, 19, 6.49, 44.0, 31, 70.5, 179.3, 139580, true], ["ये खेती नहीं शेयर मार्केट है, पानी की तरह मिलेगा पैसा💰🤑", 2062, 5, 5.49, 1249.0, 312, 25.0, 178.8, 30485, false], ["अरे बापरे मुर्गियों के लिए AC,लाखो रूपये लगा दिए मुर्गि", 23322, 41, 4.84, 59.0, 42, 71.2, 178.6, 124038, true], ["थ्री इडियट्स वाला वायरस जुगाड़🔥🔥Top 5 Smart Farming Tech", 5235, 17, 7.21, 502.0, 120, 23.9, 175.9, 64113, false], ["Goat Farm का Super Man देखो 😎🐐 #indianfarmer #shorts", 37747, 50, 7.34, 39.0, 24, 61.5, 174.7, 151487, true], ["A TO Z खेती PLANTIX APP के साथ🌽👨🏽‍🌾 #indianfarmer #shor", 35145, 72, 7.41, 51.0, 30, 58.8, 174.2, 199901, true], ["Market में मचा दी धूम 📈 Saunf Farming बन गई कमाई का नया", 4015, 23, 4.18, 561.0, 155, 27.6, 173.3, 73206, false], ["Sweet potato plantation😍 #Shorts #indianfarmer #santosh", 33389, 50, 4.5, 38.0, 31, 81.6, 171.5, 143535, true], ["मूंगफली खेती की जानकारी | Groundnut - Peanut Farming in", 3939, 9, 8.4, 469.0, 156, 33.3, 171.3, 40637, false], ["फफूंद को करो तड़ीपार🦠💯Fungus Attack and Control | Indian", 4308, 25, 9.49, 388.0, 142, 36.6, 170.2, 41411, false], ["किसान क्यों होते है शतावरी की खेती में फेल🤔😱Shatavari F", 22717, 19, 8.1, 52.0, 42, 80.8, 168.5, 57798, true], ["Easy Pipe Leakage Repair🔥🔥 |  Indian Farmer #shorts", 31256, 46, 5.63, 47.0, 32, 68.1, 168.4, 174302, true], ["सस्ता सिंपल देसी जुगाड़ फर्टिगेशन | Irrigation - Fertiga", 5484, 15, 9.41, 316.0, 110, 34.8, 168.1, 50160, false], ["सस्ता सिंपल देसी जुगाड़ देखो👌😳बहुत काम आएगा💯#indianfarm", 25112, 27, 2.61, 53.0, 37, 69.8, 166.2, 249240, true], ["तैरता हुआ ATM मशीन......40 लाख से 1 करोड़ का टर्नओवर | ", 1931, 6, 6.2, 1506.0, 305, 20.3, 163.9, 23953, false], ["न इलेक्ट्रिसिटी ना इंजन....सस्ता पानी जुगाड़ | Siphon Ir", 4116, 17, 9.04, 379.0, 140, 36.9, 160.7, 36197, false], ["हर किसान का सवाल🔴सवाल-जवाब with संतोष भाई | Indian Farm", 7920, 17, 2.41, 1881.0, 72, 3.8, 160.1, 64645, false], ["हर किसान का सवाल🔴सवाल-जवाब with संतोष भाई | Indian Farm", 6497, 9, 2.62, 1986.0, 88, 4.4, 159.9, 59457, false], ["पानी की तरह बनाओ पैसा फिश फार्मिंग से🤑💯 Fish Farming Ne", 1690, 2, 4.98, 1078.0, 339, 31.4, 159.6, 23311, false], ["Trolly भर-भर के क्यों लाया खाद? 🤔🚜 #indianfarmer #short", 27056, 10, 8.26, 45.0, 29, 64.4, 158.7, 41036, true], ["असली की पहचान करो 🔍 Link Pinned Comment में है 👉 #india", 33972, 18, 4.88, 57.0, 27, 47.4, 158.4, 158174, true], ["बिना मिट्टी - Organic Farming | 90% पानी की बचत | Hydro", 3255, 8, 6.47, 717.0, 175, 24.4, 158.2, 39246, false], ["आप कभी देखी नहीं होगी मल्चिंग पेपर पर मक्का की फसल 😯 । ", 50773, 28, 4.02, 25.0, 20, 80.0, 156.8, 256001, true], ["Tomato Farming की PROFIT Key 🍅👉 Link Pin Comment में 🔗 ", 32671, 39, 6.23, 51.0, 29, 56.9, 155.9, 124312, true], ["2022 मैं अब होगी सटीक और स्मार्ट फार्मिंग📡🛰️ Fasal Farm", 2577, 8, 6.81, 674.0, 217, 32.2, 155.6, 28601, false], ["2 महीने में 10 टन उत्पादन😱💯गर्मियों में भी Successfully", 23679, 24, 8.54, 49.0, 32, 65.3, 155.3, 97874, true], ["वायरस VIRUS वायरस 😥😥 Virus Attack and Control all Infor", 3247, 19, 6.77, 545.0, 171, 31.4, 155.1, 41022, false], ["1,50,00रु.का डेली माल | Raisins Production Process | Ra", 3682, 13, 6.95, 607.0, 150, 24.7, 154.2, 45916, false], ["Stock Market से भी ज़्यादा पैसा मिलेगा 😱💰बस ये 3 Techni", 2735, 16, 2.84, 627.0, 201, 32.1, 153.3, 74547, false], ["हर किसान का सवाल🔴सवाल-जवाब with संतोष भाई | Indian Farm", 5775, 0, 2.42, 2465.0, 94, 3.8, 151.3, 58188, false], ["फसल में मौजूद फास्फोरस की कमी के लिए - Try TSP", 27992, 18, 6.73, 47.0, 32, 68.1, 150.9, 152879, true], ["कम लागत से होगा ज्यादा मुनाफा 👌💯🔥Jugaad vs. High Budget", 2196, 6, 7.26, 1020.0, 246, 24.1, 150.1, 25548, false], ["हर किसान का सपना होगा पूरा✨खुद का Tractor, वो भी Tensio", 32343, 7, 8.85, 45.0, 27, 60.0, 148.3, 76597, true], ["इन चार जुगाड़ पाना पे चलेगी पूरी फैक्ट्री | Amazing Wren", 4818, 17, 6.46, 307.0, 109, 35.5, 146.5, 61852, false], ["सबसे खतरनाक फ़फूंद! 🦠⚠️Downy Mildew Attack & Control | ", 2523, 12, 4.18, 665.0, 207, 31.1, 145.6, 45814, false], ["Fish farming से 2 लाख कमाई😱💰Watch Full Video👆 #indianfa", 24725, 24, 4.53, 45.0, 33, 73.3, 145.1, 84736, true], ["अजीबोगरीब स्पिरुलिना शैवाल खेती | Best Profitable Spiru", 2399, 5, 5.99, 1128.0, 216, 19.1, 144.0, 29844, false], ["TSP का असली फायदा क्या है? 🤔क्या इसे खड़ी फसल में दे सक", 33572, 16, 4.16, 64.0, 28, 43.8, 139.7, 84941, true], ["गुड़ देसी पर सेल विदेश मैं 🤑🤑Jaggery Making Business | T", 1891, 7, 7.33, 999.0, 264, 26.4, 139.1, 21657, false], ["10 महीने में ₹12 लाख का PROFIT? 🍇💯Indian Farmer Grapes ", 2885, 6, 5.35, 624.0, 172, 27.6, 137.9, 39562, false], ["हल चलाए बिना खेती हो सकती है?🤔 Watch Full Podcast on Yo", 13425, 19, 7.12, 80.0, 56, 70.0, 137.4, 42279, true], ["ऐसे होती है देवभूमी में Apple की आधुनिक खेती🍎🍎 Modern A", 1711, 4, 6.81, 1842.0, 279, 15.1, 133.0, 20673, false], ["किसान के पैसे और मेहनत की बचत | 100% LIVE Results | Ins", 1295, 8, 6.72, 2006.0, 363, 18.1, 130.6, 14904, false], ["Drip Irrigation Jugaad #shorts", 62472, 17, 2.44, 17.0, 17, 100.0, 130.2, 367456, true], ["देसी जुगाड़ हैंडपंप...न इलेक्ट्रिसिटी ना इंजन🔥🔥Water Pu", 3566, 3, 7.23, 393.0, 130, 33.1, 128.9, 34412, false], ["बस एक रूम से करोडों की खेती | Biggest Automatic Farming", 1270, 3, 6.0, 2641.0, 357, 13.5, 126.0, 15744, false], ["धान की खेती से बदलेगी किस्मत💯🤑🔥 Rice Farming A to Z | I", 1247, 4, 5.07, 1732.0, 357, 20.6, 124.0, 18698, false], ["नंबर वन देसी जुगाड़ ट्राली और स्प्रे पंप | Tractor Spra", 3294, 7, 6.08, 763.0, 135, 17.7, 123.9, 43763, false], ["बकरी फार्म पे चारे का जुगाड़ - Goat Farming | Indian Far", 26499, 18, 4.65, 35.0, 25, 71.4, 123.1, 98028, true], ["सीखो…और पैसे वाली खेती करो💰Link Pin Comment कर दी है 👉🎓", 24485, 15, 4.62, 54.0, 27, 50.0, 122.7, 53286, true], ["दूध से बनता है रबर 😱 🔥Rubber Making Process #indianfarm", 19058, 12, 6.35, 56.0, 36, 64.3, 122.2, 70549, true], ["खतरा भी नहीं, काम भी सही ✅💪 #indianfarmer #shorts", 18728, 3, 3.22, 50.0, 31, 62.0, 119.0, 29491, true], ["करोड़ों की अदरक खेती | Biggest Ginger Farming in India |", 1836, 5, 5.43, 989.0, 233, 23.6, 118.8, 26126, false], ["जुगाड़ शेडनेट हाउस खेती🔥💯#indianfarmer #shorts #farming", 14977, 21, 7.45, 59.0, 38, 64.4, 118.0, 97901, true], ["Vermicompost से महीने की ₹20 लाख कमाई ?🪱💰 #indianfarmer", 14617, 14, 4.66, 60.0, 45, 75.0, 117.2, 37949, true], ["क्या आप चाय में Lemongrass का इस्तेमाल करते है ?🤔☕Comme", 20339, 29, 7.98, 42.0, 28, 66.7, 116.9, 66266, true], ["WHITE GOLD का हिसाब | Cotton Farming #Shorts #IndianFar", 15200, 32, 5.93, 57.0, 40, 70.2, 116.6, 76145, true], ["600 रुपए का एक पौधा😱🤑आपके यहां कैसे नारियल उगाए जाते है", 12428, 18, 8.39, 59.0, 42, 71.2, 116.5, 89008, true], ["फसलों का खून चूसने वाला दानव⚠️🚫Aphid Attack & Control |", 1789, 14, 3.88, 703.0, 228, 32.4, 113.7, 36160, false], ["कपास की खेती कब और कैसे की जाती है🤔Cotton Farming in In", 1651, 7, 5.34, 1814.0, 247, 13.6, 113.6, 13753, false], ["तोरई की आधुनिक खेती से होगा पैसा ही पैसा😱🤑तोरई के खेती ", 2324, 10, 8.28, 611.0, 174, 28.5, 112.9, 25025, false], ["मधुमक्खी की चौका देने वाली ये बाते | Indian Farmer | #s", 24217, 19, 6.51, 35.0, 28, 80.0, 112.7, 85003, true], ["कुछ हजार का हटके सिस्टम जो आपकी फसल डबल करेगा | Modern ", 12607, 8, 9.86, 59.0, 40, 67.8, 112.1, 84934, true], ["पानी की बड़ी योजना की शुरवात🔥 #Shorts #indianfarmer #sa", 13248, 7, 7.65, 60.0, 37, 61.7, 111.8, 120491, true], ["कमाल का आर्गेनिक जामुन 😋💯 Ever seen Indian Blackberry F", 23361, 26, 10.23, 36.0, 24, 66.7, 111.0, 92183, true], ["रेन पाइप से सिंचाई💦👌Rain Pipe Irrigation #indianfarmer ", 19936, 35, 5.65, 42.0, 28, 66.7, 109.9, 117192, true], ["इस से बड़ा जामुन आपने देखा नहीं होगा 😋😱 Jamun Farming #s", 25992, 32, 6.52, 28.0, 21, 75.0, 108.7, 112202, true], ["इसने झटके मैं सब कुछ तहस नहस कर दिया | Fall Armyworm At", 1714, 15, 5.25, 611.0, 227, 37.2, 108.5, 23716, false], ["100 रूपए मैं ड्रिप चकाचक | Drip Irrigation Repair - Mai", 2945, 9, 8.15, 351.0, 131, 37.3, 107.8, 31298, false], ["जंगली जानवरों को भगाने का देसी जुगाड़ 🔥🔥Jugaad #shorts", 33699, 19, 1.69, 35.0, 27, 77.1, 107.1, 252343, true], ["मैंने भी इतने Mushroom पहली बार सुने 🍄😅 #indianfarmer #", 15842, 57, 6.25, 50.0, 36, 72.0, 106.4, 51709, true], ["कलाकारी किसान का कमाल का जुगाड़ 🎨🚜 #indianfarmer #jugaa", 15174, 16, 7.32, 51.0, 35, 68.6, 105.8, 104055, true], ["मधुमक्खियाँ🐝🐝Honey Bee Farming #shorts", 31637, 30, 3.88, 26.0, 21, 80.8, 104.2, 97375, true], ["700रु किलो काजू से मालामाल कमाई🤑🤑Cashew Nut Processing ", 1616, 6, 5.96, 968.0, 231, 23.9, 104.0, 21828, false], ["Creator Spotlight: Indian Farmer", 4378, 17, 3.83, 679.0, 84, 12.4, 103.2, 58392, false], ["मुनाफा 6 गुना करने का तरीका 50Rs नारियल❌- 300 Rs तेल✅ |", 15204, 6, 10.82, 47.0, 34, 72.3, 102.0, 86971, true], ["घंटो का काम मिनटों मैं🔥🔥खतरनाक जुगाड़ मशीने | Case Sugar", 2647, 6, 6.75, 396.0, 138, 34.8, 101.8, 32041, false], ["400 फ़ीट बोरवेल मैं पानी पंप फिटिंग | Easy Water Pump Fi", 2435, 5, 5.8, 572.0, 148, 25.9, 100.3, 16077, false], ["हर किसान का सवाल🔴सवाल-जवाब with संतोष भाई | Indian Farm", 3012, -4, 2.09, 1491.0, 119, 8.0, 100.2, 70500, false], ["गन्ना छीलने का लल्लनटॉप जुगाड़😱🔥कैसे लगा comment में बत", 14254, 15, 10.11, 47.0, 36, 76.6, 99.0, 47242, true], ["दमदार सोलिस ट्रैक्टर 50Hp | Solis tractor, Yanmar India", 15057, 17, 5.66, 60.0, 35, 58.3, 98.7, 57624, true], ["बीज उपचार विधि🌱🌱Seed Treatment Method #Shorts", 17876, 20, 5.65, 48.0, 32, 66.7, 98.5, 130167, true], ["इंडिया में पहली बार अमेरिकन ब्लूबेरी 😋😲 1st Time Bluebe", 21466, 47, 5.56, 33.0, 26, 78.8, 98.5, 90417, true], ["2 Feet pr 2Kilo Fruits😍🐒 #shorts #indianfarmer #food | ", 43148, 30, 4.4, 16.0, 13, 81.2, 95.8, 197975, true], ["बिना लाइट के अब कुआँ से निकलेगा पानी💦Lallantop Jugaad |", 12493, 8, 3.33, 58.0, 41, 70.7, 95.4, 74103, true], ["मेहनत + भरोसा = No नज़र! 🙏🧿🔥 #indianfarmer #shorts", 48745, 26, 4.32, 13.0, 12, 92.3, 93.0, 119958, true], ["क्या आपको ये पता था..? 😱 🔥👌Sabudana Making Process #ind", 19998, 12, 6.92, 29.0, 23, 79.3, 92.6, 70085, true], ["छुपकर वार करने वाला कीड़ा🐛🚫White Grub Attack & Control ", 2095, 11, 2.65, 705.0, 158, 22.4, 92.2, 40127, false], ["Bed Preparation करना सीखो🚜💰मेहनत कम फायदा ज्यादा💯😱India", 2174, 4, 7.56, 603.0, 150, 24.9, 90.7, 24002, false], ["मालामाल पपीता खेती🤑🤑Profit, Marketing, Variety, Harvest", 1622, 7, 4.87, 685.0, 199, 29.1, 90.0, 26506, false], ["pH meter for Farming #shorts", 16605, 5, 5.28, 51.0, 37, 72.5, 89.6, 86391, true], ["भारत की सबसे सुंदर \"क्वीन\" बकरी | Goat Farming Business", 719, 1, 5.74, 2171.0, 446, 20.5, 89.2, 9368, false], ["गर्मी में भूल 😮 कर भी ना करे ये गलती - Mulching 👍 लगाना", 13200, 11, 7.76, 43.0, 33, 76.7, 88.5, 49626, true], ["कैसे करते है ड्रेंचिंग ❓👌💯 How Drenching is Done #short", 16587, 7, 9.0, 37.0, 28, 75.7, 88.5, 82434, true], ["कैसे Pack होते है सबसे चाहिते हापुस आम🥭📦Alphonso Mango ", 16255, 18, 5.02, 44.0, 30, 68.2, 86.4, 49758, true], ["हरे पुदीना से भरो जेब 💰🌿  #indianfarmer #shorts", 12546, 18, 8.5, 52.0, 35, 67.3, 82.8, 41561, true], ["बड़े काम और सस्ते दाम🚜🚜Power Tiller Tractor Machine Work", 2351, 3, 8.59, 394.0, 126, 32.0, 82.3, 22239, false], ["भैंस को लगाया जा रहा है सरसों का तेल😱🤔सबसे बड़ा Murrah B", 10968, 19, 10.58, 52.0, 30, 57.7, 81.8, 80463, true], ["खेत की पाइपलाइन फिटिंग कैसे करे🤔🤔Pipeline Irrigation A ", 19543, 15, 3.95, 37.0, 26, 70.3, 80.8, 95842, true], ["छोटा पैकेट , बड़ा धमाका🚜🚜John Deere 3028EN Price, Mileag", 1994, 2, 6.99, 615.0, 145, 23.6, 80.4, 22561, false], ["कैसे करें चंदन की खेती ?🤔💰पूरा वीडियो देखने के लिए ऊपर ", 10518, 12, 5.92, 57.0, 42, 73.7, 80.1, 35773, true], ["इस सिंपल 500रु. के जुगाड़ से बचाओ 3 लाख रुपये🔥🔥Desi Jug", 2328, 8, 8.89, 271.0, 123, 45.4, 79.9, 21519, false], ["महीनेभर में जबरदस्त Growth || हमारा अंगूर का बाग || #sh", 16254, 6, 6.05, 59.0, 29, 49.2, 79.5, 2032, true], ["Pet Wire Bandhai | Indian Farmer |  #shorts", 12195, 18, 8.83, 51.0, 36, 70.6, 78.8, 53664, true], ["जीवामृत बनाने का अनोखा टैंक 😲🔥 Jivamrut Making Tank #sh", 15130, 24, 5.27, 39.0, 32, 82.1, 78.3, 71687, true], ["Beans की फसल 1 बार लगाईये 2 बार कमाईये 😲🔥 Indian Farmer", 11239, 6, 8.04, 51.0, 33, 64.7, 77.0, 50148, true], ["Course की Link Pin Comment कर दी है 👉🎓 #indianfarmer #s", 14521, 18, 0.94, 57.0, 32, 56.1, 76.8, 36007, true], ["आपने कभी ऐसा traditional filter देखा है ?🤔😱Coconut Oil ", 10182, 6, 6.92, 55.0, 38, 69.1, 75.5, 45716, true], ["Jugaad लगा लो, धूप जला रही है☀️⚙️ #indianfarmer #shorts", 11771, 5, 7.13, 61.0, 43, 70.5, 75.3, 22757, true], ["नीले केले की खेती देखो😱💯100 रु किलो से बिकता है ये केला", 12757, 8, 5.23, 51.0, 36, 70.6, 74.5, 46999, true], ["आरंभम 💪🔥 किसानो का दौर आ चूका है | #shorts #indianfarme", 26120, 17, 8.31, 20.0, 17, 85.0, 73.4, 136950, true], ["हल्दी लगाने का नया तरीका 🟡👌 Turmeric on Mulching New Me", 14402, 7, 5.41, 43.0, 31, 72.1, 72.9, 66415, true], ["PROFIT घटने की असली वजह 💸 Nematode कर रहा है नुकसान 😳Ne", 3543, 24, 1.91, 342.0, 73, 21.3, 72.8, 59723, false], ["2700 करोड़ का Export 🚀🍇 Grapes Farming का One Stop Solu", 2165, 4, 2.31, 451.0, 120, 26.6, 72.5, 54692, false], ["लॉन्च LIVE – शिमला मिर्च कोर्स 🔴", 4103, 3, 3.33, 650.0, 63, 9.7, 71.9, 41500, false], ["ALL IN ONE🚚🚛TATA INTRA V50 GOLD🌟 #indianfarmer #shorts", 16488, 15, 3.06, 52.0, 24, 46.2, 71.5, 48016, true], ["8000x100रुपये🔥🔥एक एकड़ टमाटर खेती की कमाई🍅🍅Tomato Farmin", 1978, 5, 6.06, 327.0, 128, 39.1, 70.4, 27087, false], ["WhatsApp की ये छोटी सी Film दिल छू जाएगी | बातन ही बातन", 1900, 2, 1.46, 597.0, 132, 22.1, 70.0, 109201, false], ["आप किस तरह से Waste Management करते हो ?🤔🐮 #indianfarme", 11349, 15, 7.23, 42.0, 33, 78.6, 70.0, 60536, true], ["अंगूर plants की कटाई || Base Cutting of grapes plant #i", 11149, 25, 5.54, 54.0, 35, 64.8, 69.9, 47233, true], ["बदलते मौसम का असर⚡अब ऐसे करें Control ✅Climate Change G", 1045, 4, 1.58, 795.0, 240, 30.2, 69.8, 44065, false], ["90 दिनों में दोगुना पैसा💰⏳ #indianfarmer #shorts", 11784, 7, 8.39, 44.0, 34, 77.3, 69.4, 51599, true], ["खतरनाक कैंची देसी जुगाड़🔥 #Shorts #indianfarmer #santos", 9903, 12, 5.98, 56.0, 38, 67.9, 69.1, 43937, true], ["इतनी तगड़ी खेती आज तक नहीं देखीं होगी🔥🔥एक पेड़ पर 100किलो", 1277, 2, 5.06, 681.0, 194, 28.5, 68.9, 20885, false], ["Dragon Fruit करेगा आपको मालामाल💰₹15 लाख कमाई💸 #indianfa", 10242, 7, 5.18, 49.0, 35, 71.4, 68.4, 51988, true], ["कटहल ❓ को आप क्या बोलते है || Comment Down 👇 Below || ल", 14825, 12, 6.11, 37.0, 26, 70.3, 68.1, 69790, true], ["गरी डालो, तेल निकालो 🥥🛢️ Coconut Oil Business🤑💸 #Indian", 10223, 19, 5.75, 60.0, 36, 60.0, 68.0, 40396, true], ["हाती जितनी ताकत है इस ट्रैक्टर में😱💯John Deere 3036E Tr", 1656, 4, 8.3, 663.0, 145, 21.9, 66.9, 17277, false], ["पूरी दुनिया 🌍 का बेस्ट ड्रिप जुगाड़ 🚜 Drip, Rotor & Mulc", 10953, 4, 6.58, 36.0, 28, 77.8, 66.6, 74902, true], ["इतना महंगा विदेशी फूल🌷🤯👌Expensive hydrangea flower in i", 13860, 14, 7.28, 34.0, 26, 76.5, 66.6, 57344, true], ["पुरे 50 साल तक होती हैं मालामाल कमाई | Modern Apple Far", 1417, 8, 6.85, 724.0, 169, 23.3, 66.5, 17394, false], ["Drip Irrigation में खाद छोड़ने के देसी जुगाड़😱🔥Top 5 Fe", 1617, 5, 7.58, 625.0, 146, 23.4, 65.9, 17568, false], ["12 महीने Cherry Tomato की खेती🍅💯लाखों की कमाई🤑Watch Ful", 10563, 9, 6.13, 51.0, 34, 66.7, 65.7, 41684, true], ["कितने काम का है ये मिनी ट्रैक्टर??🚜🚜 VST SHAKTI MT 225 ", 1811, 4, 9.95, 609.0, 128, 21.0, 64.7, 15564, false], ["Gerbera Flower Farming🌼👌#indianfarmer #shorts #agricult", 12031, 20, 6.24, 46.0, 25, 54.3, 63.7, 72193, true], ["खतरनाक एसिड और ड्रिप मेंटेनेंस का नायाब देसी जुगाड़😱😱Dri", 1496, 3, 7.11, 618.0, 153, 24.8, 63.7, 17997, false], ["हर किसान का सवाल🔴सवाल-जवाब with संतोष भाई | Indian Farm", 3043, -6, 1.86, 1211.0, 75, 6.2, 63.6, 65257, false], ["राही है तो सही है ✅🔥👌 Best Onion Seeds For Farming #sho", 9865, 19, 4.19, 60.0, 36, 60.0, 63.5, 62845, true], ["Drip Cleaning Jugaad | Indian Farmer | #shorts", 21309, 5, 5.87, 22.0, 19, 86.4, 61.9, 79985, true], ["1 अप्रैल के पहले देखो ये वीडियो वरना 100% पछताओगे🔥🔥Amaz", 973, 4, 5.3, 884.0, 225, 25.5, 60.9, 13734, false], ["खंबा हो या ऊँचे पेड....ये जुगाड़ बहुत काम आयेगा🔥🔥Best De", 1872, 6, 7.31, 378.0, 115, 30.4, 60.0, 17386, false], ["बैंगन की परफेक्ट नर्सरी🍆🍆 | Indian Farmer | #shorts #sh", 23434, 11, 5.27, 21.0, 17, 81.0, 59.7, 53443, true], ["मौसंबी खेती कहाँ और कैसे होती हैं👌🍊#indianfarmer #short", 9033, 16, 6.65, 49.0, 34, 69.4, 58.8, 45060, true], ["कैसी लगी जुगाडू मशीन ?👌🔥 Amazing Cocopeat Filling Machi", 9127, 17, 5.58, 55.0, 38, 69.1, 58.3, 31129, true], ["Low Budget में करेला खेती 👌💯 Bitter Gourd Farming in In", 10195, 11, 5.48, 52.0, 33, 63.5, 57.8, 48324, true], ["सबसे अनोखी और महंगी खेती 👚😱 How Silk is Made #shorts #i", 9889, 10, 6.16, 41.0, 30, 73.2, 56.4, 35387, true], ["क्या गजब का जुगाड़ है😱💯🔥Desi Plantation Jugaad👌 #indianf", 6592, 6, 8.78, 50.0, 36, 72.0, 56.1, 51238, true], ["कम खर्चे वाली आधुनिक खेती || Cauliflower Farming || फूल", 1002, 5, 6.98, 627.0, 199, 31.7, 55.4, 12328, false], ["Yeh sirf kheti nahi hai, yeh ek nayi soch ka transforma", 99419, 0, NaN, 15.0, 10, 66.7, 54.9, 0, true], ["ऐसे कीजिये जुगाड़ प्लांटेशन | 100% Result | Plantation, ", 1125, 7, 7.69, 513.0, 175, 34.1, 54.9, 12045, false], ["कौन-कौन है यहाँ जो रोज कोकम का इस्तेमाल करते हैं? 🤔👇 #i", 7558, 9, 6.14, 61.0, 37, 60.7, 54.7, 34686, true], ["गजब नस्ल बकरी🐐 Beetal Goat #shorts #indianfarmer", 9675, 18, 5.58, 50.0, 28, 56.0, 54.5, 41534, true], ["Insulin Plants Information #shorts", 15239, 21, 4.73, 33.0, 25, 75.8, 54.4, 54627, true], ["हर किसान के पास ये होना ही चाहिए💯👍Best Spray Nozzle💯🔥 #", 8434, 9, 6.0, 51.0, 33, 64.7, 54.4, 44240, true], ["1000 गाँव की किस्मत बदलने वाली Scheme🚧💧Canal Making Pro", 1877, 4, 1.46, 588.0, 104, 17.7, 54.2, 49251, false], ["एक भैंस से 2,60,000 रुपये की कमाई🤯💰Watch Full Video👆 #i", 9376, 10, 4.45, 53.0, 34, 64.2, 54.1, 5032, true], ["अनोखा Jugad जो सालोसाल सबकी मेहनत बचाएगा 😎 | Desi Jugad", 8519, 11, 5.87, 45.0, 32, 71.1, 53.8, 58533, true], ["मालामाल अंगूर🍇🍇Finest Grapes Harvesting - Farming in In", 2032, 4, 7.77, 663.0, 94, 14.2, 53.6, 9967, false], ["शानदार जबरदस्त जिंदाबाद माइक्रो स्प्रिंकलर इरीगेशन🔥🔥Ama", 815, 3, 5.66, 921.0, 233, 25.3, 52.8, 11056, false], ["खीरे का भाई Zucchini | AtoZ farming series | Indian Far", 8553, 6, 6.55, 49.0, 35, 71.4, 52.4, 34656, true], ["फसल को दस गुना ज्यादा मजबूत बनाये | Soil Drenching in A", 1185, 3, 8.02, 479.0, 157, 32.8, 52.0, 11592, false], ["बिना खुदाई करे डाले पाइपलाइन 💯💦 Underground Pipe Line |", 8540, 11, 3.0, 52.0, 34, 65.4, 51.2, 51647, true], ["आखिर नर्सरी में टनेल क्यों? 🤭 | nursery tunnel | Indian", 8482, 17, 5.04, 55.0, 34, 61.8, 51.2, 40889, true], ["दुनिया का सबसे Medicinal Plant 🌿💊 ₹3 लाख कमाई💰 #indianf", 8142, 17, 8.46, 51.0, 32, 62.7, 51.1, 35753, true], ["गाय के गोबर से बना डाला Business 🐮🤑 #Indianfarmer #dair", 7638, 14, 7.63, 53.0, 34, 64.2, 50.4, 25806, true], ["गिट्टी की फैक्ट्री 🏭  | Stone Crusher | Indian Farmer #", 12105, 9, 5.99, 34.0, 22, 64.7, 50.4, 44964, true], ["135 किलो का महाकाय बीटल बकरा 😱🐐 #indianfarmer #shorts", 9386, 11, 1.81, 55.0, 36, 65.5, 49.7, 29863, true], ["आलू का अनोखा Harvesting🥔😲  #indianfarmer #shorts", 8327, 9, 4.65, 44.0, 34, 77.3, 49.6, 37752, true]], "top10": [["5 Star Resort Jaisa Poultry Farm 😍🐔 #indianfarmer #shor", 3583454, 3972, 6.38], ["झटपट बनेगा चारा..फटाफट होगा काम 🚜✅ #indianfarmer #short", 3460891, 3047, 6.38], ["ऐसा फार्म हो तो PROFIT भाग के आएगा💰🤩 #indianfarmer #sho", 2252148, 1796, 6.34], ["Waste नहीं, खेत का कचरा भी Business है! 🌾📈💰 #indianfarm", 1679603, 884, 4.93], ["Sahi Timing pe Sahi Kaam karna Zaruri hai ✅⚠️ #indianfa", 1636780, 2034, 7.53], ["Pipeline और Road दोनों सही सलामत ✅🚜 #indianfarmer #shor", 1179799, 385, 6.34], ["असली Beetal का देसी फार्म 😎🐐पूरा Video देखने के लिए ऊपर", 891072, 1399, 8.03], ["6 हज़ार में खरीदा कचरा ?😳💸  #indianfarmer #shorts", 841912, 309, 8.41], ["अजीबोगरीब केकड़ा ट्रैक्टर😱🤯Swaraj Code Tractor #indianf", 733105, 1372, 6.17], ["एक जुगाड़ बचाएगा आपके ₹30 लाख 🤯💯 #indianfarmer #shorts", 717513, 998, 7.78]], "traffic": [["Shorts feed", 27694548, NaN], ["YouTube search", 9635807, 5.87], ["Browse features", 4542711, 8.42], ["Channel pages", 1225409, 1.7], ["Suggested videos", 1104998, 5.32], ["External", 218382, NaN], ["Other YouTube features", 209844, NaN], ["Notifications", 122824, NaN], ["Direct or unknown", 41254, NaN], ["Related Shorts", 28004, NaN], ["Playlists", 22628, 2.04], ["Hashtag pages", 10379, NaN], ["Sound pages", 5330, NaN], ["End screens", 3198, NaN], ["Remixed video", 1881, NaN], ["Vertical live feed", 1422, NaN], ["Video cards and annotations", 501, NaN], ["Live Redirect", 1, NaN]], "geo": [["IN", 41468057], ["PK", 613302], ["NP", 482578], ["BD", 341732], ["SA", 309015], ["AE", 290834], ["US", 160261], ["GB", 83659]], "trend_dates": ["Jan 19", "Jan 20", "Jan 21", "Jan 22", "Jan 23", "Jan 24", "Jan 25", "Jan 26", "Jan 27", "Jan 28", "Jan 29", "Jan 30", "Jan 31", "Feb 01", "Feb 02", "Feb 03", "Feb 04", "Feb 05", "Feb 06", "Feb 07", "Feb 08", "Feb 09", "Feb 10", "Feb 11", "Feb 12", "Feb 13", "Feb 14", "Feb 15", "Feb 16", "Feb 17", "Feb 18", "Feb 19", "Feb 20", "Feb 21", "Feb 22", "Feb 23", "Feb 24", "Feb 25", "Feb 26", "Feb 27", "Feb 28", "Mar 01", "Mar 02", "Mar 03", "Mar 04", "Mar 05", "Mar 06", "Mar 07", "Mar 08", "Mar 09", "Mar 10", "Mar 11", "Mar 12", "Mar 13", "Mar 14", "Mar 15", "Mar 16", "Mar 17", "Mar 18", "Mar 19", "Mar 20", "Mar 21", "Mar 22", "Mar 23", "Mar 24", "Mar 25", "Mar 26", "Mar 27", "Mar 28", "Mar 29", "Mar 30", "Mar 31", "Apr 01", "Apr 02", "Apr 03", "Apr 04", "Apr 05", "Apr 06", "Apr 07", "Apr 08", "Apr 09", "Apr 10", "Apr 11", "Apr 12", "Apr 13", "Apr 14", "Apr 15", "Apr 16", "Apr 17", "Apr 18"], "trend_avd": [86, 60, 68, 69, 81, 83, 64, 63, 73, 75, 69, 66, 66, 73, 81, 83, 76, 74, 74, 73, 80, 78, 75, 52, 62, 78, 63, 58, 65, 66, 67, 69, 71, 71, 72, 73, 79, 75, 81, 104, 72, 63, 79, 74, 77, 77, 78, 79, 76, 84, 81, 82, 76, 71, 60, 64, 66, 58, 58, 62, 68, 75, 75, 75, 77, 81, 81, 74, 72, 66, 68, 70, 68, 70, 79, 73, 74, 72, 65, 55, 65, 79, 81, 78, 74, 73, 74, 70, 65, 70], "weekly": [["Jan 19", 2, 2265120], ["Jan 26", 6, 827678], ["Feb 02", 3, 381493], ["Feb 09", 5, 2802639], ["Feb 16", 4, 509278], ["Feb 23", 5, 1457261], ["Mar 02", 6, 478671], ["Mar 09", 6, 1366951], ["Mar 16", 4, 934331], ["Mar 23", 3, 477941], ["Mar 30", 5, 781473], ["Apr 06", 4, 375285], ["Apr 13", 5, 326718]], "ret_agg": {"short": 68.5, "long": 23.7}, "gems": [["खरपतवार का 100% नियंत्रण | BEST CORN HERBICIDE SPRAY - ", 7891, 12.19], ["मुनाफा 6 गुना करने का तरीका 50Rs नारियल❌- 300 Rs तेल✅ |", 15204, 10.82], ["भैंस को लगाया जा रहा है सरसों का तेल😱🤔सबसे बड़ा Murrah B", 10968, 10.58], ["15 साल का Experience एक Video में😱💯 Prawns Fish Farming", 12628, 10.2], ["गन्ना छीलने का लल्लनटॉप जुगाड़😱🔥कैसे लगा comment में बत", 14254, 10.11], ["कितने काम का है ये मिनी ट्रैक्टर??🚜🚜 VST SHAKTI MT 225 ", 1811, 9.95]], "rnp": [["Chain Flood Irrigation System🌊💦#Shorts #indianfarmer", 90503, 2.33], ["Drip Irrigation Jugaad #shorts", 62472, 2.44], ["3 राज जो देंगे आपको लाखो 🤯🤯Marigold Farming Secrets #sh", 71397, 2.63], ["40 Din Ka Poultry Farm Business🐔💰 #indianfarmer #shorts", 61181, 2.75], ["शतावरी की खेती। इसको आयुर्वेद मैं बहुत महत्वपूर्ण स्थान", 165047, 2.94], ["जुगाड़ सिस्टम देखो🐄🐮 चलती फिरती दूध डेरी | MINI DAIRY #i", 62097, 3.03]]};
+const DD = {"pareto": [[0, 8.2], [2, 38.9], [4, 51.8], [6, 59.4], [8, 64.5], [10, 68.7], [12, 72.2], [14, 75.0], [16, 77.5], [18, 79.6], [20, 81.4], [22, 83.1], [24, 84.6], [26, 85.9], [28, 87.1], [30, 88.3], [32, 89.3], [34, 90.3], [36, 91.1], [38, 91.9], [40, 92.7], [42, 93.3], [44, 94.0], [46, 94.5], [48, 95.0], [50, 95.5], [52, 95.9], [54, 96.3], [56, 96.6], [58, 97.0], [60, 97.3], [62, 97.5], [64, 97.8], [66, 98.0], [68, 98.3], [70, 98.5], [72, 98.7], [74, 98.9], [76, 99.0], [78, 99.2], [80, 99.3], [82, 99.4], [84, 99.5], [86, 99.6], [88, 99.7], [90, 99.8], [92, 99.8], [94, 99.9], [96, 99.9], [98, 100.0], [100, 100.0]], "duration_buckets": [["<5 min", 2, 5109.5, 47.8, 10.5], ["5-10 min", 33, 8881.0, 31.8, 7.0], ["10-15 min", 70, 8217.3, 26.1, 6.8], ["15-25 min", 60, 18850.4, 23.6, 6.5], ["25+ min", 69, 23752.3, 16.8, 6.2]], "weekday": [["Monday", 46, 52854.0], ["Tuesday", 76, 71187.0], ["Wednesday", 47, 112350.0], ["Thursday", 47, 135040.0], ["Friday", 173, 78144.0], ["Saturday", 53, 93858.0], ["Sunday", 56, 100710.0]], "video_trends": {"LVjTNUrnDo0": {"title": "सहजन से होगा छप्परफाड़ PROFIT🌿💰Moringa Farmin", "dates": ["Jan 19", "Jan 20", "Jan 21", "Jan 22", "Jan 23", "Jan 24", "Jan 25", "Jan 26", "Jan 27", "Jan 28", "Jan 29", "Jan 30", "Jan 31", "Feb 01", "Feb 02", "Feb 03", "Feb 04", "Feb 05", "Feb 06", "Feb 07", "Feb 08", "Feb 09", "Feb 10", "Feb 11", "Feb 12", "Feb 13", "Feb 14", "Feb 15", "Feb 16", "Feb 17", "Feb 18", "Feb 19", "Feb 20", "Feb 21", "Feb 22", "Feb 23", "Feb 24", "Feb 25", "Feb 26", "Feb 27", "Feb 28", "Mar 01", "Mar 02", "Mar 03", "Mar 04", "Mar 05", "Mar 06", "Mar 07", "Mar 08", "Mar 09", "Mar 10", "Mar 11", "Mar 12", "Mar 13", "Mar 14", "Mar 15", "Mar 16", "Mar 17", "Mar 18", "Mar 19", "Mar 20", "Mar 21", "Mar 22", "Mar 23", "Mar 24", "Mar 25", "Mar 26", "Mar 27", "Mar 28", "Mar 29", "Mar 30", "Mar 31", "Apr 01", "Apr 02", "Apr 03", "Apr 04", "Apr 05", "Apr 06", "Apr 07", "Apr 08", "Apr 09", "Apr 10", "Apr 11", "Apr 12", "Apr 13", "Apr 14", "Apr 15", "Apr 16", "Apr 17", "Apr 18"], "avd": [364, 346, 344, 374, 345, 330, 347, 374, 357, 307, 322, 347, 359, 350, 348, 347, 354, 334, 339, 351, 341, 361, 376, 372, 367, 393, 406, 403, 363, 351, 326, 343, 362, 370, 365, 358, 366, 393, 383, 376, 357, 358, 376, 382, 385, 370, 351, 362, 338, 377, 370, 379, 341, 360, 367, 341, 328, 322, 361, 348, 337, 347, 326, 346, 342, 333, 329, 325, 336, 317, 337, 333, 356, 325, 346, 365, 397, 352, 361, 363, 350, 361, 367, 371, 358, 341, 340, 352, 349, 359]}, "Qo-GidDYzos": {"title": "5 Star Resort Jaisa Poultry Farm 😍🐔 #indianfa", "dates": ["Jan 19", "Jan 20", "Jan 21", "Jan 22", "Jan 23", "Jan 24", "Jan 25", "Jan 26", "Jan 27", "Jan 28", "Jan 29", "Jan 30", "Jan 31", "Feb 01", "Feb 02", "Feb 03", "Feb 04", "Feb 05", "Feb 06", "Feb 07", "Feb 08", "Feb 09", "Feb 10", "Feb 11", "Feb 12", "Feb 13", "Feb 14", "Feb 15", "Feb 16", "Feb 17", "Feb 18", "Feb 19", "Feb 20", "Feb 21", "Feb 22", "Feb 23", "Feb 24", "Feb 25", "Feb 26", "Feb 27", "Feb 28", "Mar 01", "Mar 02", "Mar 03", "Mar 04", "Mar 05", "Mar 06", "Mar 07", "Mar 08", "Mar 09", "Mar 10", "Mar 11", "Mar 12", "Mar 13", "Mar 14", "Mar 15", "Mar 16", "Mar 17", "Mar 18", "Mar 19", "Mar 20", "Mar 21", "Mar 22", "Mar 23", "Mar 24", "Mar 25", "Mar 26", "Mar 27", "Mar 28", "Mar 29", "Mar 30", "Mar 31", "Apr 01", "Apr 02", "Apr 03", "Apr 04", "Apr 05", "Apr 06", "Apr 07", "Apr 08", "Apr 09", "Apr 10", "Apr 11", "Apr 12", "Apr 13", "Apr 14", "Apr 15", "Apr 16", "Apr 17", "Apr 18"], "avd": [40, 41, 38, 40, 39, 38, 38, 38, 38, 39, 39, 39, 38, 37, 38, 39, 39, 38, 38, 38, 38, 38, 38, 38, 38, 37, 38, 37, 38, 38, 38, 38, 37, 37, 37, 36, 36, 37, 36, 38, 38, 39, 38, 38, 38, 38, 38, 38, 37, 37, 38, 39, 39, 39, 40, 39, 40, 40, 39, 39, 38, 39, 38, 37, 37, 36, 37, 37, 37, 37, 37, 36, 37, 37, 37, 37, 37, 37, 36, 37, 37, 37, 36, 36, 36, 37, 36, 37, 36, 37]}, "g2SG_2_tJG8": {"title": "कम जगह, कम पानी में झटपट मिलेगा चारा 🤩💯Hydrop", "dates": ["Jan 19", "Jan 20", "Jan 21", "Jan 22", "Jan 23", "Jan 24", "Jan 25", "Jan 26", "Jan 27", "Jan 28", "Jan 29", "Jan 30", "Jan 31", "Feb 01", "Feb 02", "Feb 03", "Feb 04", "Feb 05", "Feb 06", "Feb 07", "Feb 08", "Feb 09", "Feb 10", "Feb 11", "Feb 12", "Feb 13", "Feb 14", "Feb 15", "Feb 16", "Feb 17", "Feb 18", "Feb 19", "Feb 20", "Feb 21", "Feb 22", "Feb 23", "Feb 24", "Feb 25", "Feb 26", "Feb 27", "Feb 28", "Mar 01", "Mar 02", "Mar 03", "Mar 04", "Mar 05", "Mar 06", "Mar 07", "Mar 08", "Mar 09", "Mar 10", "Mar 11", "Mar 12", "Mar 13", "Mar 14", "Mar 15", "Mar 16", "Mar 17", "Mar 18", "Mar 19", "Mar 20", "Mar 21", "Mar 22", "Mar 23", "Mar 24", "Mar 25", "Mar 26", "Mar 27", "Mar 28", "Mar 29", "Mar 30", "Mar 31", "Apr 01", "Apr 02", "Apr 03", "Apr 04", "Apr 05", "Apr 06", "Apr 07", "Apr 08", "Apr 09", "Apr 10", "Apr 11", "Apr 12", "Apr 13", "Apr 14", "Apr 15", "Apr 16", "Apr 17", "Apr 18"], "avd": [340, 321, 327, 347, 340, 369, 374, 373, 332, 333, 348, 341, 331, 348, 328, 341, 331, 314, 315, 345, 311, 314, 297, 324, 349, 360, 361, 361, 366, 374, 371, 360, 376, 391, 366, 371, 356, 367, 377, 412, 402, 386, 348, 371, 383, 358, 372, 391, 387, 400, 421, 386, 415, 403, 417, 397, 395, 378, 390, 378, 369, 407, 380, 350, 371, 359, 364, 379, 380, 379, 374, 364, 356, 359, 399, 397, 405, 366, 333, 327, 346, 364, 361, 349, 338, 349, 325, 353, 355, 368]}, "k6_7xRroLvY": {"title": "झटपट बनेगा चारा..फटाफट होगा काम 🚜✅ #indianfar", "dates": ["Jan 19", "Jan 20", "Jan 21", "Jan 22", "Jan 23", "Jan 24", "Jan 25", "Jan 26", "Jan 27", "Jan 28", "Jan 29", "Jan 30", "Jan 31", "Feb 01", "Feb 02", "Feb 03", "Feb 04", "Feb 05", "Feb 06", "Feb 07", "Feb 08", "Feb 09", "Feb 10", "Feb 11", "Feb 12", "Feb 13", "Feb 14", "Feb 15", "Feb 16", "Feb 17", "Feb 18", "Feb 19", "Feb 20", "Feb 21", "Feb 22", "Feb 23", "Feb 24", "Feb 25", "Feb 26", "Feb 27", "Feb 28", "Mar 01", "Mar 02", "Mar 03", "Mar 04", "Mar 05", "Mar 06", "Mar 07", "Mar 08", "Mar 09", "Mar 10", "Mar 11", "Mar 12", "Mar 13", "Mar 14", "Mar 15", "Mar 16", "Mar 17", "Mar 18", "Mar 19", "Mar 20", "Mar 21", "Mar 22", "Mar 23", "Mar 24", "Mar 25", "Mar 26", "Mar 27", "Mar 28", "Mar 29", "Mar 30", "Mar 31", "Apr 01", "Apr 02", "Apr 03", "Apr 04", "Apr 05", "Apr 06", "Apr 07", "Apr 08", "Apr 09", "Apr 10", "Apr 11", "Apr 12", "Apr 13", "Apr 14", "Apr 15", "Apr 16", "Apr 17", "Apr 18"], "avd": [40, 39, 39, 40, 40, 39, 39, 40, 41, 40, 41, 39, 39, 40, 39, 39, 40, 39, 38, 38, 39, 40, 39, 38, 38, 40, 39, 39, 40, 40, 40, 39, 40, 39, 39, 38, 39, 39, 40, 39, 39, 40, 40, 41, 39, 40, 40, 38, 39, 39, 39, 39, 39, 39, 40, 39, 41, 41, 40, 39, 40, 40, 39, 40, 38, 38, 38, 40, 40, 40, 40, 39, 38, 39, 39, 39, 41, 40, 41, 40, 41, 41, 40, 41, 40, 40, 41, 40, 39, 40]}, "rmAoa-Jd-o8": {"title": "Waste नहीं, खेत का कचरा भी Business है! 🌾📈💰 #", "dates": ["Jan 19", "Jan 20", "Jan 21", "Jan 22", "Jan 23", "Jan 24", "Jan 25", "Jan 26", "Jan 27", "Jan 28", "Jan 29", "Jan 30", "Jan 31", "Feb 01", "Feb 02", "Feb 03", "Feb 04", "Feb 05", "Feb 06", "Feb 07", "Feb 08", "Feb 09", "Feb 10", "Feb 11", "Feb 12", "Feb 13", "Feb 14", "Feb 15", "Feb 16", "Feb 17", "Feb 18", "Feb 19", "Feb 20", "Feb 21", "Feb 22", "Feb 23", "Feb 24", "Feb 25", "Feb 26", "Feb 27", "Feb 28", "Mar 01", "Mar 02", "Mar 03", "Mar 04", "Mar 05", "Mar 06", "Mar 07", "Mar 08", "Mar 09", "Mar 10", "Mar 11", "Mar 12", "Mar 13", "Mar 14", "Mar 15", "Mar 16", "Mar 17", "Mar 18", "Mar 19", "Mar 20", "Mar 21", "Mar 22", "Mar 23", "Mar 24", "Mar 25", "Mar 26", "Mar 27", "Mar 28", "Mar 29", "Mar 30", "Mar 31", "Apr 01", "Apr 02", "Apr 03", "Apr 04", "Apr 05", "Apr 06", "Apr 07", "Apr 08", "Apr 09", "Apr 10", "Apr 11", "Apr 12", "Apr 13", "Apr 14", "Apr 15", "Apr 16", "Apr 17", "Apr 18"], "avd": [0, 0, 0, 0, 0, 0, 50, 53, 58, 57, 58, 57, 55, 55, 57, 59, 60, 61, 62, 60, 52, 52, 54, 52, 50, 48, 49, 49, 47, 49, 50, 49, 51, 50, 51, 48, 50, 54, 50, 49, 49, 50, 49, 45, 41, 47, 53, 46, 51, 41, 47, 49, 48, 45, 45, 50, 38, 43, 47, 47, 48, 51, 45, 47, 44, 39, 44, 47, 42, 45, 40, 44, 48, 47, 45, 43, 50, 40, 43, 40, 41, 50, 41, 40, 60, 53, 45, 43, 41, 45]}}, "course_benchmark": [4.88, 6.51, 6.62, 6.42], "views_dist": [["<1K", 0, 3], ["1K-5K", 0, 89], ["5K-20K", 67, 96], ["20K-50K", 70, 30], ["50K-200K", 89, 15], ["200K-1M", 32, 1], ["1M+", 6, 0]], "efficiency_leaders": [["Drip लगाओ, फालतू खर्चा हटाओ💡Drip Irrigation Full Guide💧", 61999, 703, 11.34, false], ["Part-Time काम, Full-Time कमाई 💥😱Vermicompost Business P", 22669, 246, 10.85, false], ["1 महीने का काम 1 रात में😱किशमिश के Factory से 100x Prof", 6433, 69, 10.73, false], ["उल्टे पत्ते सीधे करो 💯😷Thrips Attack & Control | Crop D", 7730, 79, 10.22, false], ["मोती की खेती A to Z सर्जरी, ट्रेनिंग तक की जानकारी💰👌Pea", 37610, 362, 9.63, false], ["दुनिया में कहीं भी रहो…खेत Online चलाओ 🌍🤯Auto Irrigatio", 11525, 107, 9.28, false], ["काजू से कमाए करोड़ों रुपए🤑🔥💯Cashew Nut Processing | Ind", 13927, 127, 9.12, false], ["Vegetable Farming कैसे शुरू करें?💰Step by Step पूरी जान", 6636, 60, 9.04, false], ["2025 की Top 3 सब्ज़ी की खेती💰लाखों की कमाई का पक्का रास", 11702, 99, 8.46, false], ["न बिजली ना टेंशन....सोलर से लाइफटाइम इरीगेशन | Solar Wa", 30316, 252, 8.31, false]], "geo_engagement": [["CA", 65853, 115.0], ["US", 160261, 106.0], ["MU", 10642, 105.0], ["GB", 83659, 98.0], ["AU", 37093, 97.0], ["NZ", 7632, 97.0], ["NL", 14441, 89.0], ["KR", 6564, 84.0]], "india_avd": 70};
+// video fields: t, v, s, ctr, dur, avd, ret, wh, imp, short(bool)
+
+Chart.defaults.font.family = "Segoe UI, Helvetica, Arial, sans-serif";
+Chart.defaults.color = "#5B6B57";
+const soil="#233B24", leaf="#3E6B3A", leafLight="#6E9B5E", wheat="#D9A441", wheatLight="#F0D8A0", danger="#B3543C";
+
+let currentFilter = 'all';
+let sortKey = 'v', sortDir = -1;
+let searchTerm = '';
+
+function filteredVideos(){
+  if(currentFilter==='short') return D.videos.filter(r=>r[9]);
+  if(currentFilter==='long') return D.videos.filter(r=>!r[9]);
+  return D.videos;
+}
+
+function fmt(n){ return n==null ? '—' : Math.round(n).toLocaleString(); }
+
+// ---------- KPI cards ----------
+function renderKPIs(){
+  const vids = filteredVideos();
+  const totViews = vids.reduce((a,r)=>a+r[1],0);
+  const totSubs = vids.reduce((a,r)=>a+r[2],0);
+  const totWH = vids.reduce((a,r)=>a+r[7],0);
+  const totImp = vids.reduce((a,r)=>a+(r[8]||0),0);
+  const avgCtr = totImp>0 ? (vids.reduce((a,r)=>a+((r[3]||0)*(r[8]||0)),0)/totImp) : 0;
+  const kpis = currentFilter==='all' ? [
+    {label:"Total Views (90 days)", value:"44.88M", sub:"vs. 113.4M impressions"},
+    {label:"Watch Time", value:"566,976 hrs", sub:"≈ 23,624 days of viewing"},
+    {label:"Subscribers Gained", value:"38,268", sub:"net, across all content"},
+    {label:"Overall Impressions CTR", value:"6.37%", sub:"thumbnail + title pull-through"},
+  ] : [
+    {label:"Views", value: (totViews/1e6).toFixed(2)+"M", sub: vids.length+" videos"},
+    {label:"Watch Time", value: fmt(totWH)+" hrs", sub: (totWH/totViews*3600).toFixed(0)+"s avg / view"},
+    {label:"Subscribers Gained", value: fmt(totSubs), sub: (totSubs/totViews*1000).toFixed(2)+" per 1,000 views"},
+    {label:"Weighted CTR", value: avgCtr.toFixed(2)+"%", sub: "impression-weighted"},
+  ];
+  document.getElementById('kpis').innerHTML = kpis.map(k=>`
+    <div class="kpi"><div class="label">${k.label}</div><div class="value">${k.value}</div><div class="sub">${k.sub}</div></div>
+  `).join('');
+  document.getElementById('filterCount').textContent = `${vids.length} of ${D.videos.length} videos shown`;
+}
+
+// ---------- static mix metrics (all-content view, computed server-side) ----------
+const mix = { sub_short:0.89, sub_long:4.79, wh_short:45.4, wh_long:54.6, views_short:91.6, views_long:8.4 };
+document.getElementById('m_sub_short').textContent = mix.sub_short;
+document.getElementById('m_sub_long').textContent = mix.sub_long;
+document.getElementById('m_ret_short').textContent = D.ret_agg.short;
+document.getElementById('m_ret_long').textContent = D.ret_agg.long;
+document.getElementById('m_wh_short').textContent = mix.wh_short;
+document.getElementById('m_wh_long').textContent = mix.wh_long;
+document.getElementById('m_views_short').textContent = mix.views_short;
+document.getElementById('m_views_long').textContent = mix.views_long;
+
+// ---------- Reach vs conversion scatter ----------
+function scatterData(vids){
+  return {
+    short: vids.filter(r=>r[9]).map(r=>({x:r[1], y:r[2], t:r[0]})),
+    long: vids.filter(r=>!r[9]).map(r=>({x:r[1], y:r[2], t:r[0]})),
+  };
+}
+let sd = scatterData(D.videos);
+const scatterChart = new Chart(document.getElementById('scatterChart'), {
+  type:'scatter',
+  data:{ datasets:[
+    {label:'Shorts', data:sd.short, backgroundColor:'rgba(217,164,65,.55)', borderColor:wheat, pointRadius:4},
+    {label:'Long-form', data:sd.long, backgroundColor:'rgba(62,107,58,.55)', borderColor:leaf, pointRadius:4},
+  ]},
+  options:{
+    parsing:false,
+    plugins:{
+      legend:{position:'top', align:'end'},
+      tooltip:{callbacks:{label:(ctx)=>{
+        const p=ctx.raw; return `${p.t} — ${p.x.toLocaleString()} views, ${p.y} subs`;
+      }}}
+    },
+    scales:{
+      x:{ type:'logarithmic', title:{display:true, text:'Views (log scale)'}, grid:{color:'#E4DFD0'} },
+      y:{ title:{display:true, text:'Subscribers gained'}, grid:{color:'#E4DFD0'} },
+    }
+  }
+});
+
+// ---------- CTR vs views scatter ----------
+function ctrScatterData(vids){
+  const v = vids.filter(r=>r[3]!=null);
+  return {
+    short: v.filter(r=>r[9]).map(r=>({x:r[1], y:r[3], t:r[0]})),
+    long: v.filter(r=>!r[9]).map(r=>({x:r[1], y:r[3], t:r[0]})),
+  };
+}
+let csd = ctrScatterData(D.videos);
+const ctrChart = new Chart(document.getElementById('ctrScatter'), {
+  type:'scatter',
+  data:{ datasets:[
+    {label:'Shorts', data:csd.short, backgroundColor:'rgba(217,164,65,.5)', borderColor:wheat, pointRadius:3.5},
+    {label:'Long-form', data:csd.long, backgroundColor:'rgba(62,107,58,.5)', borderColor:leaf, pointRadius:3.5},
+  ]},
+  options:{
+    parsing:false,
+    plugins:{
+      legend:{position:'top', align:'end'},
+      tooltip:{callbacks:{label:(ctx)=>{
+        const p=ctx.raw; return `${p.t} — ${p.x.toLocaleString()} views, ${p.y}% CTR`;
+      }}}
+    },
+    scales:{
+      x:{ type:'logarithmic', title:{display:true, text:'Views (log scale)'}, grid:{color:'#E4DFD0'} },
+      y:{ title:{display:true, text:'Impressions CTR (%)'}, grid:{color:'#E4DFD0'} },
+    }
+  }
+});
+
+document.getElementById('gemsList').innerHTML = D.gems.map(g=>`<li><span class="t">${g[0]}</span><span class="n">${g[2]}% CTR · ${g[1].toLocaleString()} views</span></li>`).join('');
+document.getElementById('rnpList').innerHTML = D.rnp.map(g=>`<li><span class="t">${g[0]}</span><span class="n">${g[2]}% CTR · ${g[1].toLocaleString()} views</span></li>`).join('');
+
+// ---------- Cadence chart ----------
+new Chart(document.getElementById('cadenceChart'), {
+  data:{
+    labels: D.weekly.map(w=>w[0]),
+    datasets:[
+      {type:'bar', label:'Videos published', data: D.weekly.map(w=>w[1]), backgroundColor:'rgba(217,164,65,.65)', yAxisID:'y1', order:2},
+      {type:'line', label:'Views generated', data: D.weekly.map(w=>w[2]), borderColor:soil, backgroundColor:soil, tension:.3, yAxisID:'y2', order:1, pointRadius:3},
+    ]
+  },
+  options:{
+    plugins:{legend:{position:'top', align:'end'}},
+    scales:{
+      y1:{ position:'left', beginAtZero:true, title:{display:true,text:'videos/week'}, grid:{color:'#E4DFD0'} },
+      y2:{ position:'right', beginAtZero:true, title:{display:true,text:'views/week'}, grid:{display:false} },
+      x:{ grid:{display:false} }
+    }
+  }
+});
+
+// ---------- Traffic chart ----------
+const traffic = D.traffic.slice(0,8);
+new Chart(document.getElementById('trafficChart'), {
+  type:'bar',
+  data:{ labels: traffic.map(r=>r[0]), datasets:[{label:'Views', backgroundColor: leaf, data: traffic.map(r=>r[1])}] },
+  options:{
+    plugins:{legend:{display:false},
+      tooltip:{callbacks:{afterLabel:(ctx)=>{ const ctr = traffic[ctx.dataIndex][2]; return ctr ? `CTR: ${ctr}%` : 'CTR: not tracked for this source'; }}}
+    },
+    scales:{ y:{beginAtZero:true, grid:{color:'#E4DFD0'}}, x:{grid:{display:false}} }
+  }
+});
+
+// ---------- Geo chart ----------
+const geo = D.geo.filter(g=>g[0] !== 'IN').slice(0,8);
+new Chart(document.getElementById('geoChart'), {
+  type:'bar',
+  data:{ labels: geo.map(g=>g[0]), datasets:[{label:'Views', backgroundColor: wheat, data: geo.map(g=>g[1])}] },
+  options:{
+    indexAxis:'y',
+    plugins:{legend:{display:false}, title:{display:true, text:'India = 92.4% of all views (off-scale)', font:{size:11, weight:'normal'}, color:'#5B6B57'}},
+    scales:{ x:{beginAtZero:true, grid:{color:'#E4DFD0'}}, y:{grid:{display:false}} }
+  }
+});
+
+// ---------- Trend chart ----------
+function secToLabel(s){ const m=Math.floor(s/60), sec=Math.round(s%60); return `${m}m ${sec}s`; }
+new Chart(document.getElementById('trendChart'), {
+  type:'line',
+  data:{ labels: D.trend_dates, datasets:[{
+    label:'Avg. view duration', data: D.trend_avd,
+    borderColor: soil, backgroundColor:'rgba(62,107,58,0.12)', fill:true, tension:0.3,
+    pointRadius:0, pointHoverRadius:5, pointHoverBackgroundColor:soil, pointHitRadius:12, borderWidth:2.2
+  }]},
+  options:{
+    interaction:{ mode:'index', intersect:false },
+    plugins:{
+      legend:{display:false},
+      tooltip:{ callbacks:{ label:(ctx)=> ' '+secToLabel(ctx.parsed.y) } }
+    },
+    scales:{ y:{beginAtZero:true, grid:{color:'#E4DFD0'}, title:{display:true,text:'seconds'}}, x:{grid:{display:false}, ticks:{maxTicksLimit:12}} }
+  }
+});
+
+// ---------- Pareto / concentration chart ----------
+new Chart(document.getElementById('paretoChart'), {
+  data:{
+    labels: DD.pareto.map(p=>p[0]+'%'),
+    datasets:[
+      {type:'line', label:'Cumulative % of views', data: DD.pareto.map(p=>p[1]), borderColor:leaf, backgroundColor:'rgba(62,107,58,0.15)', fill:true, tension:.25, pointRadius:0, pointHoverRadius:5, pointHitRadius:10, borderWidth:2.5},
+      {type:'line', label:'Equal distribution (reference)', data: DD.pareto.map(p=>p[0]), borderColor:'#B7B09A', borderDash:[5,4], pointRadius:0, borderWidth:1.5},
+    ]
+  },
+  options:{
+    interaction:{ mode:'index', intersect:false },
+    plugins:{ legend:{position:'top', align:'end'},
+      tooltip:{ callbacks:{ title:(items)=>`Top ${items[0].label} of videos`, label:(ctx)=> `${ctx.dataset.label}: ${ctx.parsed.y}%` } } },
+    scales:{
+      x:{ title:{display:true, text:'% of videos (ranked by views)'}, grid:{display:false} },
+      y:{ title:{display:true, text:'Cumulative % of views'}, beginAtZero:true, max:100, grid:{color:'#E4DFD0'} }
+    }
+  }
+});
+
+// ---------- Weekday chart ----------
+const wkColors = DD.weekday.map(w=>w[0]==='Thursday'?leaf: (w[0]==='Monday'?danger:wheat));
+new Chart(document.getElementById('weekdayChart'), {
+  type:'bar',
+  data:{ labels: DD.weekday.map(w=>w[0].slice(0,3)), datasets:[{label:'Avg views', data: DD.weekday.map(w=>w[2]), backgroundColor: wkColors, borderRadius:4 }] },
+  options:{
+    plugins:{ legend:{display:false},
+      tooltip:{ callbacks:{ label:(ctx)=>`${Math.round(ctx.parsed.y).toLocaleString()} avg views`, afterLabel:(ctx)=>`${DD.weekday[ctx.dataIndex][1]} videos published` } } },
+    scales:{ y:{beginAtZero:true, grid:{color:'#E4DFD0'}, title:{display:true,text:'avg views/video'}}, x:{grid:{display:false}} }
+  }
+});
+document.getElementById('weekdayList').innerHTML = DD.weekday.map(w=>`<li><span class="t">${w[0]}</span><span class="n">${w[1]} videos · ${Math.round(w[2]).toLocaleString()} avg views</span></li>`).join('');
+
+// ---------- Duration sweet-spot chart ----------
+new Chart(document.getElementById('durationChart'), {
+  data:{
+    labels: DD.duration_buckets.map(b=>b[0]),
+    datasets:[
+      {type:'bar', label:'Avg views', data: DD.duration_buckets.map(b=>b[2]), backgroundColor:'rgba(217,164,65,.7)', yAxisID:'y1', borderRadius:4, order:2},
+      {type:'line', label:'Avg retention %', data: DD.duration_buckets.map(b=>b[3]), borderColor:soil, backgroundColor:soil, tension:.3, yAxisID:'y2', pointRadius:4, order:1},
+    ]
+  },
+  options:{
+    interaction:{ mode:'index', intersect:false },
+    plugins:{ legend:{position:'top', align:'end'},
+      tooltip:{callbacks:{afterLabel:(ctx)=> ctx.datasetIndex===0 ? `n = ${DD.duration_buckets[ctx.dataIndex][1]} videos` : '' }} },
+    scales:{
+      y1:{ position:'left', beginAtZero:true, title:{display:true,text:'avg views'}, grid:{color:'#E4DFD0'} },
+      y2:{ position:'right', beginAtZero:true, max:60, title:{display:true,text:'retention %'}, grid:{display:false} },
+      x:{ grid:{display:false} }
+    }
+  }
+});
+
+// ---------- Course CTR benchmark ----------
+new Chart(document.getElementById('courseBenchChart'), {
+  type:'bar',
+  data:{
+    labels:['Course-promo videos','Channel average','Long-form average','Shorts average'],
+    datasets:[{ data: DD.course_benchmark, backgroundColor:[danger, '#B7B09A', leaf, wheat], borderRadius:4 }]
+  },
+  options:{
+    indexAxis:'y',
+    plugins:{ legend:{display:false}, tooltip:{callbacks:{label:(ctx)=>`${ctx.parsed.x}% CTR`}} },
+    scales:{ x:{ beginAtZero:true, title:{display:true,text:'Impressions CTR (%)'}, grid:{color:'#E4DFD0'} }, y:{grid:{display:false}} }
+  }
+});
+
+// ---------- View-count distribution (consistency) ----------
+new Chart(document.getElementById('distChart'), {
+  type:'bar',
+  data:{
+    labels: DD.views_dist.map(d=>d[0]),
+    datasets:[
+      {label:'Shorts', data: DD.views_dist.map(d=>d[1]), backgroundColor:'rgba(217,164,65,.75)', borderRadius:3},
+      {label:'Long-form', data: DD.views_dist.map(d=>d[2]), backgroundColor:'rgba(62,107,58,.75)', borderRadius:3},
+    ]
+  },
+  options:{
+    plugins:{ legend:{position:'top', align:'end'} },
+    scales:{ y:{beginAtZero:true, grid:{color:'#E4DFD0'}, title:{display:true,text:'number of videos'}}, x:{grid:{display:false}, title:{display:true,text:'views bracket'}} }
+  }
+});
+
+// ---------- Efficiency leaderboard table ----------
+document.getElementById('effTable').innerHTML = DD.efficiency_leaders.map((r,i)=>{
+  const [title, views, subs, rate, isShort] = r;
+  return `<tr>
+    <td class="rank">${i+1}</td>
+    <td>${title} <span class="tag ${isShort?'short':'long'}">${isShort?'Short':'Long-form'}</span></td>
+    <td>${views.toLocaleString()}</td>
+    <td>${subs.toLocaleString()}</td>
+    <td><b>${rate}</b></td>
+  </tr>`;
+}).join('');
+
+// ---------- Geo engagement depth ----------
+new Chart(document.getElementById('geoEngChart'), {
+  type:'bar',
+  data:{
+    labels: DD.geo_engagement.map(g=>g[0]),
+    datasets:[{ label:'Avg view duration (sec)', data: DD.geo_engagement.map(g=>g[2]), backgroundColor:leaf, borderRadius:4 }]
+  },
+  options:{
+    plugins:{
+      legend:{display:false},
+      tooltip:{ callbacks:{ label:(ctx)=>`${ctx.parsed.y}s avg`, afterLabel:(ctx)=>`${DD.geo_engagement[ctx.dataIndex][1].toLocaleString()} views` } },
+      annotation:undefined
+    },
+    scales:{ y:{beginAtZero:true, grid:{color:'#E4DFD0'}, title:{display:true,text:'seconds'}}, x:{grid:{display:false}} }
+  },
+  plugins:[{
+    id:'indiaLine',
+    afterDraw(chart){
+      const {ctx, chartArea:{left,right}, scales:{y}} = chart;
+      const yPos = y.getPixelForValue(DD.india_avd);
+      ctx.save();
+      ctx.strokeStyle = '#B3543C'; ctx.setLineDash([5,4]); ctx.lineWidth=1.5;
+      ctx.beginPath(); ctx.moveTo(left, yPos); ctx.lineTo(right, yPos); ctx.stroke();
+      ctx.fillStyle = '#B3543C'; ctx.font = '11px Segoe UI'; ctx.setLineDash([]);
+      ctx.fillText(`India avg: ${DD.india_avd}s`, left+6, yPos-6);
+      ctx.restore();
+    }
+  }]
+});
+const palette = [leaf, wheat, soil, '#8A5F14', danger];
+const vtKeys = Object.keys(DD.video_trends);
+new Chart(document.getElementById('videoTrendChart'), {
+  type:'line',
+  data:{
+    labels: DD.video_trends[vtKeys[0]].dates,
+    datasets: vtKeys.map((k,i)=>({
+      label: DD.video_trends[k].title,
+      data: DD.video_trends[k].avd,
+      borderColor: palette[i%palette.length],
+      backgroundColor: palette[i%palette.length],
+      pointRadius:0, pointHoverRadius:4, pointHitRadius:8, borderWidth:2, tension:.25
+    }))
+  },
+  options:{
+    interaction:{ mode:'index', intersect:false },
+    plugins:{ legend:{position:'bottom', labels:{boxWidth:10, font:{size:10.5}}},
+      tooltip:{ callbacks:{ label:(ctx)=> `${ctx.dataset.label}: ${secToLabel(ctx.parsed.y)}` } } },
+    scales:{ y:{beginAtZero:true, grid:{color:'#E4DFD0'}, title:{display:true,text:'seconds'}}, x:{grid:{display:false}, ticks:{maxTicksLimit:10}} }
+  }
+});
+
+// ---------- Table ----------
+function renderTable(){
+  let vids = filteredVideos();
+  if(searchTerm) vids = vids.filter(r=>r[0].toLowerCase().includes(searchTerm));
+  const idx = {t:0,v:1,s:2,ctr:3,ret:6};
+  vids = [...vids].sort((a,b)=>{
+    const k = idx[sortKey];
+    let av=a[k], bv=b[k];
+    if(sortKey==='t') return sortDir*String(av).localeCompare(String(bv));
+    av = av==null? -Infinity : av; bv = bv==null? -Infinity: bv;
+    return sortDir*(av-bv);
+  });
+  const rows = vids.slice(0,25);
+  document.querySelector('#topTable tbody').innerHTML = rows.map(r=>`
+    <tr>
+      <td>${r[0]}</td>
+      <td><span class="tag ${r[9]?'short':'long'}">${r[9]?'Short':'Long-form'}</span></td>
+      <td>${fmt(r[1])}</td>
+      <td>${fmt(r[2])}</td>
+      <td>${r[3]!=null? r[3]+'%':'—'}</td>
+      <td>${r[6]!=null? r[6]+'%':'—'}</td>
+    </tr>`).join('');
+  document.getElementById('tableTitle').textContent = `Top videos by ${sortKey==='v'?'views':sortKey==='s'?'subscribers':sortKey==='ctr'?'CTR':sortKey==='ret'?'retention':'title'} (showing up to 25)`;
+}
+document.querySelectorAll('#topTable th').forEach(th=>{
+  th.addEventListener('click', ()=>{
+    const k = th.dataset.k;
+    if(k==='type') return;
+    if(sortKey===k){ sortDir*=-1; } else { sortKey=k; sortDir=-1; }
+    renderTable();
+  });
+});
+document.getElementById('tableSearch').addEventListener('input', (e)=>{
+  searchTerm = e.target.value.toLowerCase();
+  renderTable();
+});
+
+// ---------- Filter wiring ----------
+document.querySelectorAll('#typeFilter button').forEach(btn=>{
+  btn.addEventListener('click', ()=>{
+    document.querySelectorAll('#typeFilter button').forEach(b=>b.classList.remove('active'));
+    btn.classList.add('active');
+    currentFilter = btn.dataset.f;
+    const vids = filteredVideos();
+    const s = scatterData(vids);
+    scatterChart.data.datasets[0].data = s.short;
+    scatterChart.data.datasets[1].data = s.long;
+    scatterChart.update();
+    const cs = ctrScatterData(vids);
+    ctrChart.data.datasets[0].data = cs.short;
+    ctrChart.data.datasets[1].data = cs.long;
+    ctrChart.update();
+    renderKPIs();
+    renderTable();
+  });
+});
+
+renderKPIs();
+renderTable();
+</script>
+</body>
+</html>
